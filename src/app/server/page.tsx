@@ -6,6 +6,7 @@ import { getPendingOrders, updateOrderStatus } from "@/app/actions";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export default function WaiterDashboard() {
   const { user } = useAuth();
@@ -230,7 +231,7 @@ export default function WaiterDashboard() {
 
                   {order.deliveryProofUrl && (
                      <div className="mb-6 rounded-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800 aspect-video relative cursor-pointer group" onClick={() => setFullPhoto(order.deliveryProofUrl)}>
-                        <Image src={order.deliveryProofUrl} alt="Proof" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                        <img src={order.deliveryProofUrl} alt="Proof" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Info className="text-white" /></div>
                         <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
                      </div>

@@ -6,6 +6,7 @@ import { getPendingOrders, updateOrderStatus, deleteOrder } from "@/app/actions"
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function CashierDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -303,7 +304,7 @@ export default function CashierDashboard() {
       {fullImage && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-8 md:p-12 print:hidden backdrop-blur-2xl" onClick={() => setFullImage(null)}>
             <button className="absolute top-8 right-8 w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-rose-500 text-white rounded-full transition-all" onClick={() => setFullImage(null)}><XCircle /></button>
-            <Image src={fullImage} className="max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-800" alt="Full Receipt" />
+            <img src={fullImage} className="max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-800" alt="Full Receipt" />
         </div>
       )}
 
@@ -314,7 +315,7 @@ export default function CashierDashboard() {
               {/* Receipt Header */}
               <div className="text-center mb-6 space-y-1">
                  <div className="flex justify-center mb-2">
-                    <Image src="/hermina_logo.png" alt="Hermina Logo" className="w-12 h-12 grayscale brightness-0" onError={(e) => e.currentTarget.style.display='none'} />
+                    <img src="/hermina_logo.png" alt="Hermina Logo" className="w-12 h-12 grayscale brightness-0" onError={(e) => e.currentTarget.style.display='none'} />
                  </div>
                  <h1 className="text-lg font-black leading-tight">RS HERMINA PASURUAN</h1>
                  <p className="text-[10px] font-bold">Jl. Ir. H. Juanda No.92, Pasuruan</p>

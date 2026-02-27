@@ -213,13 +213,13 @@ export default function OrderPage() {
         {filteredMenuItems.map(item => (
           <div key={item.id} className="bg-zinc-900/50 rounded-[2.5rem] border border-zinc-800/50 overflow-hidden group hover:border-zinc-700 transition-all duration-500 flex flex-col">
             <div className="relative aspect-[4/3] overflow-hidden cursor-pointer" onClick={() => setSelectedItem(item)}>
-               <Image src={item.imageUrl || item.image || "/placeholder.png"} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+               <img src={item.imageUrl || item.image || "/placeholder.png"} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                
                <div className="absolute top-4 left-4 bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-zinc-800">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   <span className="text-[10px] font-black">{item.rating?.toFixed(1) || "0.0"}</span>
                </div>
-               <div className="absolute top-4 right-4 bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-zinc-800">
+               <div className="absolute top-4 right-4 bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-zinc-800 pb-3">
                   <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{item.category}</span>
                </div>
                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -260,7 +260,7 @@ export default function OrderPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 backdrop-blur-2xl bg-black/80">
            <div className="bg-zinc-900 border border-zinc-800 w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-300 max-h-[90vh]">
               <div className="w-full md:w-1/2 relative bg-zinc-950">
-                 <Image src={selectedItem.imageUrl || selectedItem.image || "/placeholder.png"} alt={selectedItem.name} className="w-full h-full object-cover" />
+                 <img src={selectedItem.imageUrl || selectedItem.image || "/placeholder.png"} alt={selectedItem.name} className="w-full h-full object-cover" />
                  <button onClick={() => setSelectedItem(null)} className="absolute top-6 left-6 p-4 bg-black/50 backdrop-blur-md text-white rounded-full md:hidden">
                     <X className="w-6 h-6" />
                  </button>

@@ -60,7 +60,7 @@ export default function Home() {
          <div className="flex-1 relative w-full max-w-lg lg:max-w-xl z-10">
            <div className="relative w-full aspect-square">
              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-emerald-500/20 rounded-full filter blur-3xl animate-pulse"></div>
-             <Image 
+             <img 
                 src="/assets/mascot.png" 
                 alt="Hospital Waiter Mascot" 
                 className="w-full h-full object-contain relative z-10 drop-shadow-2xl animate-serve hover:scale-105 transition-all duration-500 mix-blend-multiply dark:mix-blend-normal dark:bg-white/95 dark:p-6 dark:rounded-[3rem] dark:shadow-[0_0_50px_rgba(255,255,255,0.05)] dark:border dark:border-white/10"

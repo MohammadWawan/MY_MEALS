@@ -258,7 +258,7 @@ export default function AdminDoctorRegister() {
                          <div className="relative group shrink-0">
                             <div className="w-20 h-20 rounded-2xl bg-zinc-100 dark:bg-zinc-800 overflow-hidden border-2 border-indigo-100 dark:border-indigo-900/30 shrink-0 shadow-inner">
                                 {doc.image ? (
-                                    <Image src={doc.image} alt={doc.name} className="w-full h-full object-cover" />
+                                    <img src={doc.image} alt={doc.name} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex flex-col items-center justify-center text-zinc-400 text-[10px] font-bold">
                                         No Photo

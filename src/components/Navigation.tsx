@@ -29,53 +29,67 @@ export default function Navigation() {
     router.push("/");
   };
 
+  const isActive = (path: string) => pathname === path;
+
+  const linkClass = (path: string, color: string = 'indigo') => `
+    relative px-4 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2
+    ${isActive(path) 
+      ? `text-${color}-600 dark:text-${color}-400 bg-${color}-50/80 dark:bg-${color}-900/30 shadow-sm` 
+      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800/50'}
+  `;
+
+  const mobileLinkClass = (path: string, color: string = 'indigo') => `
+    block px-4 py-3 rounded-xl text-sm font-bold transition-all
+    ${isActive(path)
+      ? `bg-${color}-50 dark:bg-${color}-900/30 text-${color}-600 dark:text-${color}-400`
+      : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'}
+  `;
+
   return (
     <nav className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-50 transition-colors duration-300 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <Link href="/" className="flex-shrink-0 flex items-center gap-2">
-              <div className="w-10 h-10  rounded-lg flex items-center justify-center ">
-              <Image 
-                src="/assets/logo.svg" 
-                alt="Hospital Waiter Mascot" 
-                
-             />
+            <Link href="/" className="flex-shrink-0 flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/20 group-hover:scale-105 transition-transform">
+                <img 
+                  src="/assets/logo.svg" 
+                  alt="Hermina Logo" 
+                  className="w-7 h-7"
+                />
               </div>
-              <span className="text-emerald-700 dark:text-emerald-500 font-black text-xl tracking-tight leading-none">
-                HERMINA <br/><span className="text-[10px] tracking-widest text-emerald-600/80 dark:text-emerald-400/80">PASURUAN</span>
+              <span className="text-emerald-700 dark:text-emerald-500 font-black text-xl tracking-tighter leading-none">
+                HERMINA <br/><span className="text-[9px] tracking-[0.2em] text-emerald-600/60 dark:text-emerald-400/60">PASURUAN</span>
               </span>
             </Link>
             
             {user && (
-              <div className="hidden lg:flex ml-10 space-x-2">
+              <div className="hidden lg:flex ml-10 items-center gap-1">
                 {(isAdmin || user.role === 'customer' || user.role === 'doctor') && (
                   <>
-                    <Link href="/order" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-2 rounded-md text-sm font-semibold transition-all">Order Menu</Link>
-                    <Link href="/tracking" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-2 rounded-md text-sm font-semibold transition-all">My Orders</Link>
+                    <Link href="/order" className={linkClass('/order')}>Order Menu</Link>
+                    <Link href="/tracking" className={linkClass('/tracking')}>My Orders</Link>
                   </>
                 )}
                 {(isAdmin || user.role === 'customer') && (
-                  <Link href="/payment" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-2 rounded-md text-sm font-semibold transition-all">Payments</Link>
+                  <Link href="/payment" className={linkClass('/payment')}>Payments</Link>
                 )}
                 {(isAdmin || user.role === 'catering') && (
-                  <Link href="/catering" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-2 rounded-md text-sm font-semibold transition-all">Kitchen Hub</Link>
+                  <Link href="/catering" className={linkClass('/catering')}>Kitchen Hub</Link>
                 )}
                 {(isAdmin || user.role === 'waiter') && (
-                  <Link href="/server" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-2 rounded-md text-sm font-semibold transition-all">Server Dash</Link>
+                  <Link href="/server" className={linkClass('/server')}>Server Dash</Link>
                 )}
                 {(isAdmin || user.role === 'cashier') && (
-                  <>
-                    <Link href="/cashier" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-2 rounded-md text-sm font-semibold transition-all">Validations</Link>
-                  </>
+                  <Link href="/cashier" className={linkClass('/cashier')}>Validations</Link>
                 )}
                 {(isAdmin || user.role === 'catering' || user.role === 'cashier' || user.role === 'waiter') && (
-                  <Link href="/reports" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-2 rounded-md text-sm font-semibold transition-all">Reports</Link>
+                  <Link href="/reports" className={linkClass('/reports')}>Reports</Link>
                 )}
                 {user.role === 'admin' && (
                   <>
-                    <Link href="/admin/menu" className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-2 rounded-md text-sm font-bold transition-all">Manage Menus</Link>
-                    <Link href="/admin/doctors" className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-3 py-2 rounded-md text-sm font-bold transition-all">Add Doctor</Link>
+                    <Link href="/admin/menu" className={linkClass('/admin/menu', 'emerald')}>Manage Menus</Link>
+                    <Link href="/admin/doctors" className={linkClass('/admin/doctors', 'indigo')}>Add Doctor</Link>
                   </>
                 )}
               </div>
@@ -101,17 +115,17 @@ export default function Navigation() {
                   <div className="flex items-center gap-3 border-l pl-4 border-zinc-200 dark:border-zinc-800">
                      <Link href="/profile" className="flex items-center gap-3 group">
                         {user.image ? (
-                           <Image src={user.image} className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shadow-sm transition-transform group-hover:scale-110" alt="Profile avatar" />
+                           <img src={user.image} className="w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 object-cover shadow-sm transition-transform group-hover:scale-110" alt="Profile avatar" />
                         ) : (
-                           <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex flex-col items-center justify-center text-indigo-700 dark:text-indigo-400 font-black shadow-sm transition-transform group-hover:scale-110">
-                              {user.name.charAt(0).toUpperCase()}
+                           <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex flex-col items-center justify-center text-indigo-700 dark:text-indigo-400 font-black shadow-sm transition-transform group-hover:scale-110">
+                               {user.name.charAt(0).toUpperCase()}
                            </div>
                         )}
                         <div className="text-right hidden sm:block">
-                           <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 transition-colors">
-                              Hy {user.name} - {user.role === 'customer' ? 'Customer' : user.role === 'doctor' ? 'Doctor' : user.role === 'admin' ? 'Admin' : 'Staff'}
+                           <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 transition-colors leading-tight">
+                              Hy, {user.name}
                            </p>
-                           <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mt-0.5">Edit Profile</p>
+                           <p className="text-[9px] font-black text-indigo-500/60 dark:text-indigo-400/60 uppercase tracking-[0.2em]">{user.role}</p>
                         </div>
                      </Link>
                   </div>
@@ -140,31 +154,29 @@ export default function Navigation() {
             <div className="flex flex-col space-y-2 px-2">
                 {(isAdmin || user.role === 'customer' || user.role === 'doctor') && (
                   <>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/order" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-3 rounded-md text-sm font-bold transition-all">Order Menu</Link>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/tracking" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-3 rounded-md text-sm font-bold transition-all">My Orders</Link>
+                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/order" className={mobileLinkClass('/order')}>Order Menu</Link>
+                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/tracking" className={mobileLinkClass('/tracking')}>My Orders</Link>
                   </>
                 )}
                 {(isAdmin || user.role === 'customer') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/payment" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-3 rounded-md text-sm font-bold transition-all">Payments</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/payment" className={mobileLinkClass('/payment')}>Payments</Link>
                 )}
                 {(isAdmin || user.role === 'catering') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/catering" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-3 rounded-md text-sm font-bold transition-all">Kitchen Hub</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/catering" className={mobileLinkClass('/catering')}>Kitchen Hub</Link>
                 )}
                 {(isAdmin || user.role === 'waiter') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/server" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-3 rounded-md text-sm font-bold transition-all">Server Dash</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/server" className={mobileLinkClass('/server')}>Server Dash</Link>
                 )}
                 {(isAdmin || user.role === 'cashier') && (
-                  <>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/cashier" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-3 rounded-md text-sm font-bold transition-all">Validations</Link>
-                  </>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/cashier" className={mobileLinkClass('/cashier')}>Validations</Link>
                 )}
                 {(isAdmin || user.role === 'catering' || user.role === 'cashier' || user.role === 'waiter') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/reports" className="text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-3 py-3 rounded-md text-sm font-bold transition-all">Reports</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/reports" className={mobileLinkClass('/reports')}>Reports</Link>
                 )}
                 {user.role === 'admin' && (
                   <>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/menu" className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 px-3 py-3 rounded-md text-sm font-bold transition-all">Manage Menus</Link>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/doctors" className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-3 py-3 rounded-md text-sm font-bold transition-all">Add Doctor</Link>
+                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/menu" className={mobileLinkClass('/admin/menu', 'emerald')}>Manage Menus</Link>
+                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/doctors" className={mobileLinkClass('/admin/doctors')}>Add Doctor</Link>
                   </>
                 )}
                 
@@ -174,9 +186,9 @@ export default function Navigation() {
                      setIsMobileMenuOpen(false);
                      handleLogout();
                   }} 
-                  className="w-full text-left text-red-600 dark:text-rose-400 hover:bg-red-50 dark:hover:bg-rose-900/30 px-3 py-3 rounded-md text-sm font-bold transition-all"
+                  className="w-full text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 px-4 py-3 rounded-xl text-sm font-bold transition-all"
                 >
-                  Logout
+                  Logout session
                 </button>
             </div>
           </div>
