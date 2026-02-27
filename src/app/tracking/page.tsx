@@ -163,7 +163,7 @@ export default function TrackingPage() {
                    </div>
 
                    {currentOrder.status === 'cancelled' ? (
-                      <div className="p-10 bg-rose-50 rounded-3xl text-center border-2 border-dashed border-rose-200"><h3 className="text-2xl font-black text-rose-600">Pesanan Dibatalkan</h3><p className="text-zinc-400 italic">"{currentOrder.cancelReason || 'Kebijakan Rumah Sakit'}"</p></div>
+                      <div className="p-10 bg-rose-50 rounded-3xl text-center border-2 border-dashed border-rose-200"><h3 className="text-2xl font-black text-rose-600">Pesanan Dibatalkan</h3><p className="text-zinc-400 italic">&quot;{currentOrder.cancelReason || 'Kebijakan Rumah Sakit'}&quot;</p></div>
                    ) : (
                       <div className="relative pl-10 space-y-10">
                          <div className="absolute left-[3.5px] top-4 bottom-4 w-1 bg-zinc-100 dark:bg-zinc-800 rounded-full"><div className="bg-emerald-500 w-full transition-all duration-1000" style={{height: `${Math.max(0, (currentStatusNum - 1) * 20)}%`}}></div></div>
@@ -201,7 +201,7 @@ export default function TrackingPage() {
                                             {[1,2,3,4,5].map(s => <Star key={s} className={`w-8 h-8 ${s <= currentOrder.submittedRating ? 'fill-amber-400 text-amber-400' : 'text-zinc-200'}`} />)}
                                          </div>
                                          {currentOrder.reviewText && (
-                                            <p className="text-xs bg-white dark:bg-zinc-800 p-3 rounded-xl border border-zinc-100 dark:border-zinc-700 italic">"{currentOrder.reviewText}"</p>
+                                            <p className="text-xs bg-white dark:bg-zinc-800 p-3 rounded-xl border border-zinc-100 dark:border-zinc-700 italic">&quot;{currentOrder.reviewText}&quot;</p>
                                          )}
                                       </div>
                                    </>

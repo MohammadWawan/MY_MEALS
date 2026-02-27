@@ -9,7 +9,28 @@ export default function TVMonitor() {
   const [interacted, setInteracted] = useState(false);
   const prevCountRef = useRef(0);
 
-  const fetchOrders = async () => {
+  const playNotification = useCallback(() => {
+     try {
+       const msg = new SpeechSynthesisUtterance("Perhatian! Pesanan baru telah masuk. Harap segera disiapkan!");
+       msg.lang = 'id-ID';
+       msg.pitch = 1.1; // Slightly higher for more "female" resonance if voice match is generic
+       msg.rate = 1.0;
+       
+       const voices = window.speechSynthesis.getVoices();
+       // Prioritize Indonesian Female voices (Microsoft Gadis, Google Bahasa Indonesia, etc)
+       const femaleIndo = voices.find(v => v.lang.startsWith('id') && (v.name.toLowerCase().includes('female') || v.name.includes('Gadis') || v.name.includes('Google'))) 
+                       || voices.find(v => v.lang.startsWith('id'));
+       
+       if (femaleIndo) {
+          msg.voice = femaleIndo;
+       }
+       window.speechSynthesis.speak(msg);
+     } catch (e) {
+       console.error("Speech error", e);
+     }
+  }, []);
+
+  const fetchOrders = useCallback(async () => {
     const data = await getPendingOrders();
     const mapped = data.map(o => ({
       id: o.id,
@@ -32,7 +53,7 @@ export default function TVMonitor() {
        playNotification();
     }
     prevCountRef.current = newCount;
-  };
+  }, [interacted, playNotification]);
 
   useEffect(() => {
      // Prime voices on mount for better browser support
@@ -48,28 +69,7 @@ export default function TVMonitor() {
     fetchOrders();
     const interval = setInterval(fetchOrders, 3000); 
     return () => clearInterval(interval);
-  }, [interacted]);
-
-  const playNotification = () => {
-     try {
-       const msg = new SpeechSynthesisUtterance("Perhatian! Pesanan baru telah masuk. Harap segera disiapkan!");
-       msg.lang = 'id-ID';
-       msg.pitch = 1.1; // Slightly higher for more "female" resonance if voice match is generic
-       msg.rate = 1.0;
-       
-       const voices = window.speechSynthesis.getVoices();
-       // Prioritize Indonesian Female voices (Microsoft Gadis, Google Bahasa Indonesia, etc)
-       const femaleIndo = voices.find(v => v.lang.startsWith('id') && (v.name.toLowerCase().includes('female') || v.name.includes('Gadis') || v.name.includes('Google'))) 
-                       || voices.find(v => v.lang.startsWith('id'));
-       
-       if (femaleIndo) {
-          msg.voice = femaleIndo;
-       }
-       window.speechSynthesis.speak(msg);
-     } catch (e) {
-       console.error("Speech error", e);
-     }
-  };
+  }, [fetchOrders]);
 
   const getStatusColor = (status: string) => {
     switch(status) {

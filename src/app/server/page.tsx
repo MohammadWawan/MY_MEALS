@@ -267,7 +267,7 @@ export default function WaiterDashboard() {
        {fullPhoto && (
          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 md:p-20" onClick={() => setFullPhoto(null)}>
             <button className="absolute top-6 right-6 text-white p-4 hover:bg-white/10 rounded-full"><X className="w-8 h-8" /></button>
-            <img src={fullPhoto} className="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-zinc-800" />
+            <img src={fullPhoto} alt="Full delivery proof" className="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-zinc-800" />
          </div>
        )}
     </div>
