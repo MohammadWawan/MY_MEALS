@@ -230,7 +230,7 @@ export default function WaiterDashboard() {
 
                   {order.deliveryProofUrl && (
                      <div className="mb-6 rounded-2xl overflow-hidden border border-zinc-100 dark:border-zinc-800 aspect-video relative cursor-pointer group" onClick={() => setFullPhoto(order.deliveryProofUrl)}>
-                        <img src={order.deliveryProofUrl} alt="Proof" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                        <Image src={order.deliveryProofUrl} alt="Proof" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                         <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"><Info className="text-white" /></div>
                         <div className="absolute top-2 right-2 bg-emerald-500 text-white p-1 rounded-full"><CheckCircle className="w-4 h-4" /></div>
                      </div>
@@ -267,7 +267,7 @@ export default function WaiterDashboard() {
        {fullPhoto && (
          <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 md:p-20" onClick={() => setFullPhoto(null)}>
             <button className="absolute top-6 right-6 text-white p-4 hover:bg-white/10 rounded-full"><X className="w-8 h-8" /></button>
-            <img src={fullPhoto} alt="Full delivery proof" className="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-zinc-800" />
+            <Image src={fullPhoto} alt="Full delivery proof" className="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-zinc-800" />
          </div>
        )}
     </div>

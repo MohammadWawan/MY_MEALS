@@ -53,7 +53,7 @@ export default function ProfilePage() {
         <form onSubmit={handleSave} className="space-y-6 flex flex-col items-center">
            <div className="relative group w-32 h-32 mb-4">
               {form.image ? (
-                <img src={form.image} alt="Profile" className="w-full h-full object-cover rounded-full border-4 border-indigo-100 dark:border-indigo-900 shadow-xl" />
+                <Image src={form.image} alt="Profile" className="w-full h-full object-cover rounded-full border-4 border-indigo-100 dark:border-indigo-900 shadow-xl" />
               ) : (
                 <div className="w-full h-full rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center border-4 border-white dark:border-zinc-800 shadow-xl text-indigo-500">
                   <UserIcon className="w-12 h-12" />

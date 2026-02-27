@@ -210,7 +210,7 @@ export default function ReportsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 print:hidden" onClick={() => setFullImage(null)}>
                    <div className="relative max-w-4xl w-full h-full max-h-[90vh] flex flex-col items-center justify-center">
                       <button className="absolute top-0 right-0 p-4 text-white hover:text-red-500 text-3xl font-black" onClick={() => setFullImage(null)}>&times;</button>
-                      <img src={fullImage} className="w-auto h-auto max-w-full max-h-full object-contain rounded-xl shadow-2xl" alt="Full Proof" />
+                      <Image src={fullImage} className="w-auto h-auto max-w-full max-h-full object-contain rounded-xl shadow-2xl" alt="Full Proof" />
                    </div>
                 </div>
             )}

@@ -19,7 +19,7 @@ export default function AdminMenu() {
      name: "",
      description: "",
      price: "",
-     imgUrl: "",
+     ImageUrl: "",
      category: "Paket",
      menuType: "customer"
   });
@@ -29,7 +29,7 @@ export default function AdminMenu() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setForm(prev => ({ ...prev, imgUrl: reader.result as string }));
+        setForm(prev => ({ ...prev, ImageUrl: reader.result as string }));
       };
       reader.readAsDataURL(file);
     }
@@ -45,7 +45,7 @@ export default function AdminMenu() {
                  description: form.description,
                  price: form.menuType === 'doctor' ? 0 : (parseInt(form.price) || 0),
                  category: form.category,
-                 imageUrl: form.imgUrl,
+                 imageUrl: form.ImageUrl,
                  menuType: form.menuType
              });
              toast.success("Menu updated successfully");
@@ -55,7 +55,7 @@ export default function AdminMenu() {
                 description: form.description,
                 price: form.menuType === 'doctor' ? 0 : (parseInt(form.price) || 0),
                 category: form.category,
-                imageUrl: form.imgUrl,
+                imageUrl: form.ImageUrl,
                 menuType: form.menuType
              });
              toast.success("Menu added successfully");
@@ -65,7 +65,7 @@ export default function AdminMenu() {
         setMenuItems(updated);
 
         setEditingId(null);
-        setForm({ name: "", description: "", price: "", imgUrl: "", category: "Paket", menuType: "customer" });
+        setForm({ name: "", description: "", price: "", ImageUrl: "", category: "Paket", menuType: "customer" });
         setFileKey(Date.now());
     } catch(err) {
         toast.error("An error occurred");
@@ -79,7 +79,7 @@ export default function AdminMenu() {
           description: menu.description || "",
           price: menu.price.toString(),
           category: menu.category,
-          imgUrl: menu.imageUrl || "",
+          ImageUrl: menu.imageUrl || "",
           menuType: menu.menuType
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -87,7 +87,7 @@ export default function AdminMenu() {
 
   const handleCancelEdit = () => {
       setEditingId(null);
-      setForm({ name: "", description: "", price: "", imgUrl: "", category: "Paket", menuType: "customer" });
+      setForm({ name: "", description: "", price: "", ImageUrl: "", category: "Paket", menuType: "customer" });
       setFileKey(Date.now());
   };
 

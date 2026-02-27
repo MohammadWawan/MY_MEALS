@@ -36,7 +36,7 @@ export default function Navigation() {
           <div className="flex items-center">
             <Link href="/" className="flex-shrink-0 flex items-center gap-2">
               <div className="w-10 h-10  rounded-lg flex items-center justify-center ">
-              <img 
+              <Image 
                 src="/assets/logo.svg" 
                 alt="Hospital Waiter Mascot" 
                 
@@ -101,7 +101,7 @@ export default function Navigation() {
                   <div className="flex items-center gap-3 border-l pl-4 border-zinc-200 dark:border-zinc-800">
                      <Link href="/profile" className="flex items-center gap-3 group">
                         {user.image ? (
-                           <img src={user.image} className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shadow-sm transition-transform group-hover:scale-110" alt="Profile avatar" />
+                           <Image src={user.image} className="w-8 h-8 rounded-full border border-zinc-200 dark:border-zinc-700 object-cover shadow-sm transition-transform group-hover:scale-110" alt="Profile avatar" />
                         ) : (
                            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex flex-col items-center justify-center text-indigo-700 dark:text-indigo-400 font-black shadow-sm transition-transform group-hover:scale-110">
                               {user.name.charAt(0).toUpperCase()}
