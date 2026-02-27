@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+build
+docker-compose.yml
+Dockerfile
+.dockerignore
+.git
+.gitignore
+sqlite.db
+sqlite.db-journal

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hospital-pos-app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./sqlite.db:/app/sqlite.db
+    restart: always
+    environment:
+      - NODE_ENV=production
