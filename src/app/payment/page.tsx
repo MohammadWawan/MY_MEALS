@@ -158,6 +158,7 @@ export default function PaymentPage() {
               <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Upload Transaction Receipt</label>
               <input 
                 type="file" 
+                accept=".jpg,.jpeg,.png"
                 required 
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                 className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-300 cursor-pointer"

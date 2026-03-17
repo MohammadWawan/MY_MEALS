@@ -165,17 +165,17 @@ export default function OrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-zinc-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0a] text-black dark:text-zinc-100 flex flex-col font-sans">
       {/* Header Section */}
       <header className="px-6 py-10 max-w-7xl mx-auto w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div>
-            <h1 className="text-5xl font-black mb-2 tracking-tight bg-gradient-to-r from-white to-zinc-500 bg-clip-text text-transparent">Hospital Menu</h1>
+            <h1 className="text-5xl font-black mb-2 tracking-tight bg-gradient-to-r from-zinc-900 dark:from-white to-zinc-500 bg-clip-text text-transparent">Hospital Menu</h1>
             <p className="text-zinc-500 font-medium italic">Order fresh meals. Safe to consume for patients.</p>
           </div>
           
           {user.role === 'admin' && (
-            <div className="flex bg-zinc-900 border border-zinc-800 p-1.5 rounded-2xl gap-2 shadow-xl">
+            <div className="flex bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1.5 rounded-2xl gap-2 shadow-xl">
                <button onClick={() => setAdminOrderType("customer")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'customer' ? 'bg-zinc-800 text-emerald-400 shadow-lg' : 'text-zinc-500'}`}>Orderan Customer (Umum)</button>
                <button onClick={() => setAdminOrderType("doctor")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'doctor' ? 'bg-zinc-800 text-rose-500 shadow-lg' : 'text-zinc-500'}`}>Orderan Khusus Dokter</button>
             </div>
@@ -189,7 +189,7 @@ export default function OrderPage() {
               <button 
                 key={cat} 
                 onClick={() => setCurrentCategory(cat)}
-                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${currentCategory === cat ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}
+                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${currentCategory === cat ? 'bg-indigo-600 text-black dark:text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}
               >
                 {cat}
               </button>
@@ -211,11 +211,11 @@ export default function OrderPage() {
       {/* Grid Menu */}
       <main className="px-6 pb-40 max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {filteredMenuItems.map(item => (
-          <div key={item.id} className="bg-zinc-900/50 rounded-[2.5rem] border border-zinc-800/50 overflow-hidden group hover:border-zinc-700 transition-all duration-500 flex flex-col">
+          <div key={item.id} className="bg-white dark:bg-zinc-900/50 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800/50 overflow-hidden group hover:border-zinc-700 transition-all duration-500 flex flex-col">
             <div className="relative aspect-[4/3] overflow-hidden cursor-pointer" onClick={() => setSelectedItem(item)}>
                <img src={item.imageUrl || item.image || "/placeholder.png"} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                
-               <div className="absolute top-4 left-4 bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-zinc-800">
+               <div className="absolute top-4 left-4 bg-zinc-100 dark:bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-zinc-800">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   <span className="text-[10px] font-black">{item.rating?.toFixed(1) || "0.0"}</span>
                </div>
@@ -279,7 +279,28 @@ export default function OrderPage() {
                     <button onClick={() => setSelectedItem(null)} className="hidden md:block p-2 hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"><X className="w-8 h-8" /></button>
                  </div>
 
-                 <p className="text-zinc-400 text-lg leading-relaxed mb-10">{selectedItem.description}</p>
+                 
+                 <p className="text-zinc-500 dark:text-zinc-400 text-lg leading-relaxed mb-6">{selectedItem.description}</p>
+
+                 {selectedItem.nutrition && (() => {
+                    let parsed = [];
+                    try { parsed = JSON.parse(selectedItem.nutrition); } catch(e){}
+                    if (parsed.length === 0) return null;
+                    return (
+                       <div className="mb-10 bg-white dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                          <h4 className="text-sm font-black text-black dark:text-white mb-3 uppercase tracking-widest">Nutrition Facts</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                             {parsed.map((n: any, idx: number) => (
+                                <div key={idx} className="flex justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2">
+                                   <span className="text-zinc-600 dark:text-zinc-400 text-sm font-bold">{n.indicator}</span>
+                                   <span className="text-black dark:text-white text-sm font-black">{n.value}</span>
+                                </div>
+                             ))}
+                          </div>
+                       </div>
+                    );
+                 })()}
+
 
                  <div className="mt-auto space-y-8">
                     <div className="flex justify-between items-end">
@@ -338,7 +359,7 @@ export default function OrderPage() {
       {/* Checkout Modal */}
       {showCheckout && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-xl bg-black/60">
-           <div className="bg-zinc-900 border border-zinc-800 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-5 duration-300">
+           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-5 duration-300">
               <div className="p-8 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
                  <h2 className="text-3xl font-black flex items-center gap-3">
                     <MapPin className="text-rose-500" /> Delivery Details

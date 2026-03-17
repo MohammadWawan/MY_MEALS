@@ -1,11 +1,8 @@
-node_modules
-.next
-out
-build
-docker-compose.yml
 Dockerfile
 .dockerignore
+node_modules
+npm-debug.log
+README.md
+.next
 .git
-.gitignore
-sqlite.db
-sqlite.db-journal
+hospital_pos.db-journal

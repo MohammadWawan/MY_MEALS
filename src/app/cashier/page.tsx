@@ -16,7 +16,7 @@ export default function CashierDashboard() {
   const [dateFilter, setDateFilter] = useState("");
   const [mounted, setMounted] = useState(false);
   const [lastOrderCount, setLastOrderCount] = useState(0);
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const { user } = useAuth();
   const router = useRouter();
 

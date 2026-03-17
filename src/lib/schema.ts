@@ -111,6 +111,7 @@ export const menus = sqliteTable("menu", {
   menuType: text("menuType").default("customer").notNull(), // customer, doctor
   rating: real("rating").default(0),
   reviews: integer("reviews").default(0),
+  nutrition: text("nutrition"), // JSON string
 });
 
 export const favorites = sqliteTable("favorite", {
