@@ -19,7 +19,7 @@ export default function WaiterDashboard() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
   const [lastReadyCount, setLastReadyCount] = useState(0);
-  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioEnabled, setAudioEnabled] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchOrders = useCallback(async () => {
