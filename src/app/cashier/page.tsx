@@ -6,7 +6,7 @@ import { getPendingOrders, updateOrderStatus, deleteOrder } from "@/app/actions"
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+
 
 export default function CashierDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -260,7 +260,7 @@ export default function CashierDashboard() {
              {/* Image Preview */}
              {order.receiptImageUrl && !order.isPaid && (
                <div className="mt-8 group relative overflow-hidden rounded-3xl cursor-pointer shadow-lg border-4 border-white dark:border-zinc-800" onClick={() => setFullImage(order.receiptImageUrl)}>
-                 <Image src={order.receiptImageUrl} alt="Receipt" className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-110" />
+                 <img src={order.receiptImageUrl} alt="Receipt" className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-110" />
                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <p className="text-white font-black text-xs uppercase tracking-widest">Klik Perbesar</p>
                  </div>
