@@ -94,6 +94,10 @@ export default function WaiterDashboard() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uploadingId) return;
+    if (file.size > 1 * 1024 * 1024) {
+      toast.error("File terlalu besar. Maksimal ukuran file adalah 1MB");
+      return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = async () => {

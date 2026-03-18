@@ -160,7 +160,16 @@ export default function PaymentPage() {
                 type="file" 
                 accept=".jpg,.jpeg,.png"
                 required 
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                onChange={(e) => {
+                  const selectedFile = e.target.files?.[0];
+                  if (selectedFile && selectedFile.size > 1 * 1024 * 1024) {
+                    toast.error("File terlalu besar. Maksimal ukuran file adalah 1MB");
+                    e.target.value = ""; // Reset input
+                    setFile(null);
+                    return;
+                  }
+                  setFile(selectedFile || null);
+                }}
                 className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-300 cursor-pointer"
               />
               <button type="submit" className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl mt-4 active:scale-95 transition-all outline-none">

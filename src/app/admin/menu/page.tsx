@@ -41,6 +41,10 @@ export default function AdminMenu() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 1 * 1024 * 1024) {
+        toast.error("File terlalu besar. Maksimal ukuran file adalah 1MB");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm(prev => ({ ...prev, ImageUrl: reader.result as string }));
