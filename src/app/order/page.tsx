@@ -235,7 +235,7 @@ export default function OrderPage() {
                
                <div className="mt-auto">
                   <div className="flex justify-between items-center mb-6">
-                     <p className="text-3xl font-black text-indigo-500">
+                     <p className={`font-black text-indigo-500 transition-all duration-300 ${isDoctor ? "text-3xl" : displayPrice(item.price).toLocaleString('id-ID').length > 8 ? "text-xl" : "text-3xl"}`}>
                        {isDoctor ? "FREE" : `Rp ${displayPrice(item.price).toLocaleString('id-ID')}`}
                      </p>
                   </div>
@@ -259,8 +259,8 @@ export default function OrderPage() {
       {selectedItem && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 backdrop-blur-2xl bg-black/80">
            <div className="bg-zinc-900 border border-zinc-800 w-full max-w-4xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-300 max-h-[90vh]">
-              <div className="w-full md:w-1/2 relative bg-zinc-950">
-                 <img src={selectedItem.imageUrl || selectedItem.image || "/placeholder.png"} alt={selectedItem.name} className="w-full h-full object-cover" />
+              <div className="w-full md:w-1/2 relative bg-zinc-950 flex items-center justify-center">
+                 <img src={selectedItem.imageUrl || selectedItem.image || "/placeholder.png"} alt={selectedItem.name} className="w-full h-full object-cover md:object-center" />
                  <button onClick={() => setSelectedItem(null)} className="absolute top-6 left-6 p-4 bg-black/50 backdrop-blur-md text-white rounded-full md:hidden">
                     <X className="w-6 h-6" />
                  </button>
@@ -282,30 +282,32 @@ export default function OrderPage() {
                  
                  <p className="text-zinc-500 dark:text-zinc-400 text-lg leading-relaxed mb-6">{selectedItem.description}</p>
 
-                 {selectedItem.nutrition && (() => {
-                    let parsed = [];
-                    try { parsed = JSON.parse(selectedItem.nutrition); } catch(e){}
-                    if (parsed.length === 0) return null;
-                    return (
-                       <div className="mb-10 bg-white dark:bg-zinc-900/50 rounded-2xl p-4 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                          <h4 className="text-sm font-black text-black dark:text-white mb-3 uppercase tracking-widest">Nutrition Facts</h4>
-                          <div className="grid grid-cols-2 gap-4">
-                             {parsed.map((n: any, idx: number) => (
-                                <div key={idx} className="flex justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2">
-                                   <span className="text-zinc-600 dark:text-zinc-400 text-sm font-bold">{n.indicator}</span>
-                                   <span className="text-black dark:text-white text-sm font-black">{n.value}</span>
-                                </div>
-                             ))}
-                          </div>
-                       </div>
-                    );
-                 })()}
+                  {selectedItem.nutrition && (() => {
+                     let parsed = [];
+                     try { parsed = JSON.parse(selectedItem.nutrition); } catch(e){}
+                     if (parsed.length === 0) return null;
+                     return (
+                        <div className="mb-10 bg-white/5 dark:bg-zinc-900/50 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                           <h4 className="text-sm font-black text-black dark:text-white mb-4 uppercase tracking-[0.2em] opacity-40">Nutrition Facts</h4>
+                           <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                                 {parsed.map((n: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between items-center border-b border-zinc-200/50 dark:border-zinc-800 pb-2">
+                                       <span className="text-zinc-500 text-[11px] font-bold uppercase truncate pr-2">{n.indicator}</span>
+                                       <span className="text-black dark:text-white text-xs font-black whitespace-nowrap">{n.value}</span>
+                                    </div>
+                                 ))}
+                              </div>
+                           </div>
+                        </div>
+                     );
+                  })()}
 
 
                  <div className="mt-auto space-y-8">
                     <div className="flex justify-between items-end">
                        <p className="text-zinc-500 font-black uppercase text-xs tracking-widest mb-1">Total Harga</p>
-                       <p className="text-5xl font-black text-indigo-500">
+                       <p className={`font-black text-indigo-500 transition-all duration-300 ${isDoctor ? "text-4xl" : displayPrice(selectedItem.price).toLocaleString('id-ID').length > 8 ? "text-3xl" : "text-5xl"}`}>
                          {isDoctor ? "FREE" : `Rp ${displayPrice(selectedItem.price).toLocaleString('id-ID')}`}
                        </p>
                     </div>
