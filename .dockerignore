@@ -6,3 +6,11 @@ README.md
 .next
 .git
 hospital_pos.db-journal
+sqlite.db-journal
+.vscode
+.eslintrc.json
+next-env.d.ts
+build_output.txt
+updater.py
+updater.js
+updater2.js
