@@ -13,7 +13,17 @@ export default function PaymentPage() {
   const [showPopup, setShowPopup] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const [discount, setDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setDiscount(parseFloat(params.get("discount") || "0"));
+    setCouponCode(params.get("coupon"));
+  }, []);
+
+  const cartTotal = subtotal - (subtotal * discount);
   const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -80,10 +90,10 @@ export default function PaymentPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-6 dark:bg-zinc-950 dark:text-slate-50">
-      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden">
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden transition-colors">
         <h1 className="text-3xl font-black mb-6 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Complete Your Payment</h1>
         
-        <div className="bg-slate-50 dark:bg-zinc-800/50 p-6 rounded-2xl border border-slate-100 dark:border-zinc-800 mb-8">
+        <div className="bg-slate-50 dark:bg-zinc-800/50 p-6 rounded-2xl border border-slate-100 dark:border-zinc-800 mb-8 transition-colors">
            <h3 className="font-bold text-lg mb-4 text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-700 pb-2">Order Summary</h3>
            {cart.map(item => (
               <div key={item.id} className="flex justify-between text-sm mb-2 font-medium">
@@ -91,6 +101,14 @@ export default function PaymentPage() {
                  <span className="text-zinc-900 dark:text-zinc-200">Rp {(item.price * item.qty).toLocaleString()}</span>
               </div>
            ))}
+           
+           {discount > 0 && (
+               <div className="flex justify-between text-sm mb-2 font-bold text-emerald-600 dark:text-emerald-400 border-t border-dashed border-zinc-200 dark:border-zinc-700 pt-2 mt-2">
+                  <span>Kupon {couponCode} (10%)</span>
+                  <span>- Rp {(subtotal * discount).toLocaleString()}</span>
+               </div>
+            )}
+
            <div className="flex justify-between font-black text-xl mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
                <span>Total Pay</span>
                <span className="text-indigo-600 dark:text-indigo-400">Rp {cartTotal.toLocaleString()}</span>

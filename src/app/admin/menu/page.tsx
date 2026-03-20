@@ -38,17 +38,6 @@ export default function AdminMenu() {
      setForm(f => ({ ...f, nutrition: newNutri }));
   };
 
-  
-  const addNutritionRow = () => setForm(f => ({ ...f, nutrition: [...f.nutrition, {indicator: "", value: ""}] }));
-  const updateNutrition = (index: number, field: "indicator" | "value", val: string) => {
-     const newNutri = [...form.nutrition];
-     newNutri[index][field] = val;
-     setForm(f => ({ ...f, nutrition: newNutri }));
-  };
-  const removeNutritionRow = (index: number) => {
-     const newNutri = form.nutrition.filter((_, i) => i !== index);
-     setForm(f => ({ ...f, nutrition: newNutri }));
-  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -210,17 +199,7 @@ export default function AdminMenu() {
                </div>
 
                
-               <div>
-                 <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Nutrition Facts (Optional)</label>
-                 {form.nutrition.map((n, idx) => (
-                    <div key={idx} className="flex gap-2 mb-2">
-                       <input type="text" placeholder="Indicator (e.g. Calories)" value={n.indicator} onChange={e => updateNutrition(idx, 'indicator', e.target.value)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                       <input type="text" placeholder="Value (e.g. 250 kcal)" value={n.value} onChange={e => updateNutrition(idx, 'value', e.target.value)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                       <button type="button" onClick={() => removeNutritionRow(idx)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><XCircle className="w-5 h-5"/></button>
-                    </div>
-                 ))}
-                 <button type="button" onClick={addNutritionRow} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-2 flex items-center gap-1"><Plus className="w-3 h-3"/> Add Nutrition Info</button>
-               </div>
+
 
                <div>
                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Description</label>

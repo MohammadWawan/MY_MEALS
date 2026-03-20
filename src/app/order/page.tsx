@@ -28,6 +28,9 @@ export default function OrderPage() {
   const [floor, setFloor] = useState("");
   const [location, setLocation] = useState("");
   const [isAdvance, setIsAdvance] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const [appliedCoupon, setAppliedCoupon] = useState("");
 
   const floorLocations: Record<string, string[]> = {
     "Lantai 1": ["IGD", "Poliklinik Lantai 1"],
@@ -76,12 +79,25 @@ export default function OrderPage() {
 
   const categories = ["all", ...Array.from(new Set(menuItems.filter(i => (i.menuType || 'customer') === currentOrderType).map(item => item.category)))];
 
-  const cartTotal = cart.reduce((sum, item) => {
+  const subtotal = cart.reduce((sum, item) => {
     const p = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
     return sum + (p * item.qty);
   }, 0);
   
+  const cartTotal = subtotal - (subtotal * discount);
+  
   const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  const applyCoupon = () => {
+    const code = couponCode.toUpperCase();
+    if (code === "PROMO2024" || code === "SEMBUH10") {
+      setDiscount(0.1); // 10%
+      setAppliedCoupon(code);
+      toast.success("Kupon berhasil dipasang!");
+    } else {
+      toast.error("Kode kupon tidak valid");
+    }
+  };
 
   const displayPrice = (price: any) => {
     if (isDoctor) return 0;
@@ -137,7 +153,12 @@ export default function OrderPage() {
        params.set('location', location);
        params.set('roomNumber', roomNumber);
        params.set('orderType', 'customer');
+       if (discount > 0) {
+          params.set('discount', discount.toString());
+          params.set('coupon', appliedCoupon);
+       }
        router.push(`/payment?${params.toString()}`);
+
     }
   };
 
@@ -165,19 +186,19 @@ export default function OrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0a0a] text-black dark:text-black dark:text-zinc-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0a] text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-300">
       {/* Header Section */}
       <header className="px-6 py-10 max-w-7xl mx-auto w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div>
-            <h1 className="text-5xl font-black mb-2 tracking-tight bg-gradient-to-r from-zinc-900 dark:from-zinc-900 dark:from-white to-zinc-500 bg-clip-text text-transparent">Hospital Menu</h1>
+            <h1 className="text-5xl font-black mb-2 tracking-tight bg-gradient-to-r from-zinc-900 dark:from-white to-zinc-500 bg-clip-text text-transparent">Hospital Menu</h1>
             <p className="text-zinc-500 font-medium italic">Order fresh meals. Safe to consume for patients.</p>
           </div>
           
           {user.role === 'admin' && (
-            <div className="flex bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1.5 rounded-2xl gap-2 shadow-xl">
-               <button onClick={() => setAdminOrderType("customer")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'customer' ? 'bg-zinc-800 text-emerald-400 shadow-lg' : 'text-zinc-500'}`}>Orderan Customer (Umum)</button>
-               <button onClick={() => setAdminOrderType("doctor")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'doctor' ? 'bg-zinc-800 text-rose-500 shadow-lg' : 'text-zinc-500'}`}>Orderan Khusus Dokter</button>
+            <div className="flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1.5 rounded-2xl gap-2 shadow-xl">
+               <button onClick={() => setAdminOrderType("customer")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'customer' ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-emerald-400 shadow-md ring-1 ring-zinc-200 dark:ring-0' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>Orderan Customer (Umum)</button>
+               <button onClick={() => setAdminOrderType("doctor")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'doctor' ? 'bg-white dark:bg-zinc-800 text-rose-600 dark:text-rose-500 shadow-md ring-1 ring-zinc-200 dark:ring-0' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>Orderan Khusus Dokter</button>
             </div>
           )}
         </div>
@@ -189,7 +210,7 @@ export default function OrderPage() {
               <button 
                 key={cat} 
                 onClick={() => setCurrentCategory(cat)}
-                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${currentCategory === cat ? 'bg-indigo-600 text-black dark:text-black dark:text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}
+                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${currentCategory === cat ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-800 dark:bg-zinc-900 text-white dark:text-zinc-500 border border-zinc-700 dark:border-zinc-800 hover:bg-zinc-700'}`}
               >
                 {cat}
               </button>
@@ -202,7 +223,7 @@ export default function OrderPage() {
               placeholder="Search food..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm"
             />
           </div>
         </div>
@@ -215,7 +236,7 @@ export default function OrderPage() {
             <div className="relative aspect-[4/3] overflow-hidden cursor-pointer" onClick={() => setSelectedItem(item)}>
                <img src={item.imageUrl || item.image || "/placeholder.png"} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                
-               <div className="absolute top-4 left-4 bg-zinc-100 dark:bg-zinc-100 dark:bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-zinc-800">
+               <div className="absolute top-4 left-4 bg-zinc-100 dark:bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-zinc-200 dark:border-zinc-800">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   <span className="text-[10px] font-black">{item.rating?.toFixed(1) || "0.0"}</span>
                </div>
@@ -240,7 +261,7 @@ export default function OrderPage() {
                      </p>
                   </div>
 
-                  <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-2 h-16 shadow-inner">
+                  <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-2 h-16 shadow-inner relative group/qty">
                      <button onClick={() => updateQtyWithFix(item, -1)} className="w-12 h-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-xl transition-all">
                        <Minus className="w-5 h-5" />
                      </button>
@@ -248,6 +269,12 @@ export default function OrderPage() {
                      <button onClick={() => updateQtyWithFix(item, 1)} className="w-12 h-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-xl transition-all">
                        <Plus className="w-5 h-5" />
                      </button>
+                     
+                     {getItemQty(item.id) > 0 && (
+                        <button onClick={() => removeFromCart(item.id)} className="absolute -top-2 -right-2 bg-rose-600 text-white p-1 rounded-full opacity-0 group-hover/qty:opacity-100 transition-opacity animate-in zoom-in shadow-lg">
+                           <X className="w-3 h-3" />
+                        </button>
+                     )}
                   </div>
                </div>
             </div>
@@ -287,17 +314,22 @@ export default function OrderPage() {
                      try { parsed = JSON.parse(selectedItem.nutrition); } catch(e){}
                      if (parsed.length === 0) return null;
                      return (
-                        <div className="mb-10 bg-white/5 dark:bg-zinc-900/50 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                           <h4 className="text-sm font-black text-black dark:text-white mb-4 uppercase tracking-[0.2em] opacity-40">Nutrition Facts</h4>
-                           <div className="max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                                 {parsed.map((n: any, idx: number) => (
-                                    <div key={idx} className="flex justify-between items-center border-b border-zinc-200/50 dark:border-zinc-800 pb-2">
-                                       <span className="text-zinc-500 text-[11px] font-bold uppercase truncate pr-2">{n.indicator}</span>
-                                       <span className="text-black dark:text-white text-xs font-black whitespace-nowrap">{n.value}</span>
-                                    </div>
-                                 ))}
-                              </div>
+                        <div className="mb-10 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                           <div className="bg-zinc-100 dark:bg-zinc-800/50 px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 flex justify-between">
+                              <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Nutrisi</h4>
+                              <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Jumlah</h4>
+                           </div>
+                           <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                              <table className="w-full">
+                                 <tbody className="divide-y divide-zinc-200/50 dark:divide-zinc-800">
+                                    {parsed.map((n: any, idx: number) => (
+                                       <tr key={idx} className="hover:bg-zinc-100/50 dark:hover:bg-zinc-800/30 transition-colors">
+                                          <td className="px-6 py-3 text-zinc-600 dark:text-zinc-400 text-[11px] font-bold uppercase truncate">{n.indicator}</td>
+                                          <td className="px-6 py-3 text-zinc-900 dark:text-white text-xs font-black text-right">{n.value}</td>
+                                       </tr>
+                                    ))}
+                                 </tbody>
+                              </table>
                            </div>
                         </div>
                      );
@@ -362,11 +394,11 @@ export default function OrderPage() {
       {showCheckout && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 backdrop-blur-xl bg-black/60">
            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-5 duration-300">
-              <div className="p-8 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/50">
+              <div className="p-8 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-950/50">
                  <h2 className="text-3xl font-black flex items-center gap-3">
                     <MapPin className="text-rose-500" /> Delivery Details
                  </h2>
-                 <button onClick={() => setShowCheckout(false)} className="p-3 hover:bg-zinc-800 rounded-full transition-colors"><X className="w-6 h-6" /></button>
+                 <button onClick={() => setShowCheckout(false)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"><X className="w-6 h-6" /></button>
               </div>
 
               <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
@@ -374,12 +406,12 @@ export default function OrderPage() {
                     {!isDoctor && (
                        <div className="md:col-span-2">
                           <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Medical Record No (MRN)</label>
-                          <input type="text" placeholder="ID Pasien..." value={mrn} onChange={e => setMrn(e.target.value)} className="w-full px-6 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-700" />
+                          <input type="text" placeholder="ID Pasien..." value={mrn} onChange={e => setMrn(e.target.value)} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-700" />
                        </div>
                     )}
                     <div>
                        <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Lantai</label>
-                       <select value={floor} onChange={e => { setFloor(e.target.value); setLocation(""); }} className="w-full px-6 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold appearance-none cursor-pointer">
+                       <select value={floor} onChange={e => { setFloor(e.target.value); setLocation(""); }} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold appearance-none cursor-pointer">
                           <option value="">Pilih Lantai</option>
                           {Object.keys(floorLocations).map(f => (
                              <option key={f} value={f}>{f}</option>
@@ -388,7 +420,7 @@ export default function OrderPage() {
                     </div>
                     <div>
                        <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Lokasi / Unit</label>
-                       <select value={location} onChange={e => setLocation(e.target.value)} disabled={!floor} className="w-full px-6 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                       <select value={location} onChange={e => setLocation(e.target.value)} disabled={!floor} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                           <option value="">Pilih Lokasi</option>
                           {floor && floorLocations[floor]?.map(loc => (
                              <option key={loc} value={loc}>{loc}</option>
@@ -397,31 +429,69 @@ export default function OrderPage() {
                     </div>
                     <div className="md:col-span-2">
                         <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Nomor Kamar</label>
-                        <input type="text" placeholder="Contoh: 301, ICU-1..." value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="w-full px-6 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-700" />
+                        <input type="text" placeholder="Contoh: 301, ICU-1..." value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-700" />
                      </div>
                     <div className="md:col-span-2">
                        <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Catatan Tambahan</label>
-                       <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Alergi atau instruksi khusus..." rows={3} className="w-full px-6 py-4 bg-zinc-950 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none resize-none text-sm placeholder:text-zinc-700"></textarea>
+                       <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Alergi atau instruksi khusus..." rows={3} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none resize-none text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-700"></textarea>
                     </div>
                  </div>
 
+                 {!isDoctor && (
+                   <div className="space-y-3">
+                      <label className="block text-xs font-black text-zinc-500 uppercase tracking-widest">Kupon Promo</label>
+                      <div className="flex gap-3">
+                         <input 
+                           type="text" 
+                           placeholder="Masukkan kode kupon..." 
+                           value={couponCode} 
+                           onChange={e => setCouponCode(e.target.value)} 
+                           className="flex-1 px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-700" 
+                         />
+                         <button 
+                           onClick={applyCoupon}
+                           className="px-6 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-colors"
+                         >
+                            Apply
+                         </button>
+                      </div>
+                      {appliedCoupon && (
+                         <p className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-1">
+                            <ShieldAlert className="w-3 h-3" /> Kupon {appliedCoupon} Aktif (Diskon 10%)
+                         </p>
+                      )}
+                   </div>
+                 )}
+
                  {isDoctor && (
-                   <div className="flex items-center justify-between p-6 bg-zinc-950 border border-zinc-800 rounded-3xl">
+                   <div className="flex items-center justify-between p-6 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl">
                       <div>
                          <p className="font-black text-sm">Jadwalkan Besok (H+1)</p>
                          <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Pre-order untuk tindakan besok</p>
                       </div>
-                      <button onClick={() => setIsAdvance(!isAdvance)} className={`w-14 h-8 rounded-full relative transition-all duration-300 shadow-inner ${isAdvance ? 'bg-indigo-600' : 'bg-zinc-800'}`}>
+                      <button onClick={() => setIsAdvance(!isAdvance)} className={`w-14 h-8 rounded-full relative transition-all duration-300 shadow-inner ${isAdvance ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-800'}`}>
                          <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-md ${isAdvance ? 'left-7' : 'left-1'}`}></div>
                       </button>
                    </div>
                  )}
               </div>
 
-              <div className="p-8 bg-zinc-950 flex flex-col gap-4 border-t border-zinc-800">
-                 <div className="flex justify-between items-end mb-2">
-                    <span className="text-zinc-500 font-black uppercase text-xs tracking-widest">Total Bayar</span>
-                    <span className="text-4xl font-black text-indigo-500">Rp {cartTotal.toLocaleString('id-ID')}</span>
+              <div className="p-8 bg-zinc-50 dark:bg-zinc-950 flex flex-col gap-4 border-t border-zinc-200 dark:border-zinc-800">
+                 <div className="space-y-2 mb-4">
+                    <div className="flex justify-between items-center text-xs font-black text-zinc-500 uppercase tracking-widest">
+                       <span>Subtotal</span>
+                       <span>Rp {subtotal.toLocaleString('id-ID')}</span>
+                    </div>
+                    {discount > 0 && (
+                       <div className="flex justify-between items-center text-xs font-black text-emerald-500 uppercase tracking-widest">
+                          <span>Potongan Kupon</span>
+                          <span>- Rp {(subtotal * discount).toLocaleString('id-ID')}</span>
+                       </div>
+                    )}
+                    <div className="flex justify-between items-end pt-2">
+                       <span className="text-zinc-500 font-black uppercase text-xs tracking-widest">Total Bayar</span>
+                       <span className="text-4xl font-black text-indigo-500">Rp {cartTotal.toLocaleString('id-ID')}</span>
+                    </div>
                  </div>
                  <button onClick={handleCheckout} className="w-full py-6 bg-white text-zinc-950 text-xl font-black rounded-3xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4">
                     {isDoctor ? "KONFIRMASI PESANAN DOKTER" : "LANJUT KE PEMBAYARAN"}
