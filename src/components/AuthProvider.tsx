@@ -1,11 +1,11 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { getUser } from "@/app/actions";
 
 export type Role = "customer" | "doctor" | "catering" | "waiter" | "cashier" | "admin" | null;
 
-interface User {
+export interface User {
   id: number;
   name: string;
   email: string;
@@ -39,77 +39,93 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Restore user from storage on initial load
   useEffect(() => {
     setMounted(true);
     const storedAuthStr = localStorage.getItem("medpos_auth") || sessionStorage.getItem("medpos_auth");
-    let initialUser: User | null = null;
-    let authExpiry: number = 0;
     if (storedAuthStr) {
       try {
         const data = JSON.parse(storedAuthStr);
         if (new Date().getTime() < data.expiry) {
            setUser(data.user);
-           initialUser = data.user;
-           authExpiry = data.expiry;
         } else {
            localStorage.removeItem("medpos_auth");
            sessionStorage.removeItem("medpos_auth");
         }
       } catch (e) {}
     }
+  }, []);
 
-    // Role realtime update poll
-    let interval: any;
-    const startPolling = (u: User) => {
-       const syncUser = async () => {
-          try {
-             const freshUser = await getUser(u.id);
-             setUser(prevUser => {
-                if (prevUser && freshUser) {
-                   const newRole = freshUser.role as Role;
-                   const newImage = freshUser.image || undefined;
-                   const newName = freshUser.name;
-                   
-                   const hasChanges = 
-                      newRole !== prevUser.role || 
-                      newImage !== prevUser.image || 
-                      newName !== prevUser.name;
-                      
-                   if (hasChanges) {
-                      const updatedUser: User = { 
-                         ...prevUser, 
-                         role: newRole,
-                         image: newImage,
-                         name: newName
-                      };
-                      const isLocal = !!localStorage.getItem("medpos_auth");
-                      const authData = JSON.stringify({ user: updatedUser, expiry: authExpiry });
-                      if (isLocal) localStorage.setItem("medpos_auth", authData);
-                      else sessionStorage.setItem("medpos_auth", authData);
-                      return updatedUser;
-                   }
-                }
-                return prevUser;
-             });
-          } catch (e) {}
-       };
+  // Sync user data / Polling whenever user state exists
+  useEffect(() => {
+    if (!user) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      return;
+    }
 
-       // Execute immediately to sync profile data (like image/name) on layout mount
-       syncUser();
-       interval = setInterval(syncUser, 5000);
+    const syncUser = async () => {
+      try {
+        const freshUser = await getUser(user.id);
+        if (freshUser) {
+          const newRole = freshUser.role as Role;
+          const newImage = freshUser.image || undefined;
+          const newName = freshUser.name;
+
+          const hasChanges = 
+            newRole !== user.role || 
+            newImage !== user.image || 
+            newName !== user.name;
+
+          if (hasChanges) {
+            const updatedUser: User = { 
+              ...user, 
+              role: newRole,
+              image: newImage,
+              name: newName
+            };
+            
+            setUser(updatedUser);
+
+            const isLocal = !!localStorage.getItem("medpos_auth");
+            const storedStr = localStorage.getItem("medpos_auth") || sessionStorage.getItem("medpos_auth");
+            if (storedStr) {
+              const parsed = JSON.parse(storedStr);
+              parsed.user = updatedUser;
+              const authData = JSON.stringify(parsed);
+              if (isLocal) localStorage.setItem("medpos_auth", authData);
+              else sessionStorage.setItem("medpos_auth", authData);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Sync user error:", e);
+      }
     };
 
-    if (initialUser) {
-       startPolling(initialUser);
-       return () => clearInterval(interval);
-    }
-  }, []);
+    // Initial sync
+    syncUser();
+
+    // Setup polling every 30 seconds (not 5s to avoid heavy load, but enough for auto-load feeling)
+    pollingIntervalRef.current = setInterval(syncUser, 30000);
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [user?.id]); // Only recreate if user ID changes (login/logout/switch)
 
   const login = (newUser: User, rememberMe: boolean = false) => {
     setUser(newUser);
-    const expiry = new Date().getTime() + (3 * 60 * 60 * 1000); // 3 hours
+    // Use 1 hour for session, or 30 days for remember me
+    const expiryDelay = rememberMe ? (30 * 24 * 60 * 60 * 1000) : (60 * 60 * 1000);
+    const expiry = new Date().getTime() + expiryDelay;
     const authData = JSON.stringify({ user: newUser, expiry });
     
     if (rememberMe) {
@@ -128,15 +144,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateUser = (data: Partial<User>) => {
     if (user) {
-       const newUser = { ...user, ...data };
-       setUser(newUser);
+       const newUserState = { ...user, ...data };
+       setUser(newUserState);
        // Sync to storage
        const isLocal = !!localStorage.getItem("medpos_auth");
        const storedStr = localStorage.getItem("medpos_auth") || sessionStorage.getItem("medpos_auth");
        if (storedStr) {
           try {
              const parsed = JSON.parse(storedStr);
-             parsed.user = newUser;
+             parsed.user = newUserState;
              const authData = JSON.stringify(parsed);
              if (isLocal) localStorage.setItem("medpos_auth", authData);
              else sessionStorage.setItem("medpos_auth", authData);
@@ -188,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       timeout = setTimeout(() => {
         logout();
         window.location.href = "/auth/login";
-      }, 1800000);
+      }, 3600000); 
     };
 
     let lastExecution = 0;
@@ -204,10 +220,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedStr) {
            try {
               const parsed = JSON.parse(storedStr);
-              // Extend the expiry by 3 hours from the current activity
-              parsed.expiry = new Date().getTime() + (3 * 60 * 60 * 1000);
+              // Extend the expiry
+              const isLocal = !!localStorage.getItem("medpos_auth");
+              const extension = isLocal ? (30 * 24 * 60 * 60 * 1000) : (60 * 60 * 1000);
+              parsed.expiry = new Date().getTime() + extension;
               const authData = JSON.stringify(parsed);
-              if (localStorage.getItem("medpos_auth")) localStorage.setItem("medpos_auth", authData);
+              if (isLocal) localStorage.setItem("medpos_auth", authData);
               else sessionStorage.setItem("medpos_auth", authData);
            } catch(e) {}
         }

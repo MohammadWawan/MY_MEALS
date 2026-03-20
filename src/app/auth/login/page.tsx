@@ -26,7 +26,10 @@ export default function LoginPage() {
         name: dbUser.name,
         email: dbUser.email,
         role: dbUser.role,
+        image: dbUser.image || undefined,
+
       }, rememberMe);
+
 
       // Route based on role rules
       if (dbUser.role === "admin") router.push("/");
