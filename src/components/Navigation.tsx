@@ -113,24 +113,24 @@ export default function Navigation() {
                        )}
                     </div>
                   )}
-                  <div className="flex items-center gap-3 border-l pl-4 border-zinc-200 dark:border-zinc-800">
-                     <Link href="/profile" className="flex items-center gap-3 group">
+                  <div className="flex items-center gap-3 border-l pl-4 border-zinc-200 dark:border-zinc-800 shrink-0">
+                     <Link href="/profile" className="flex items-center gap-3 group shrink-0">
                         {user.image ? (
-                           <img src={user.image} className="w-9 h-9 rounded-xl border border-zinc-200 dark:border-zinc-700 object-cover shadow-sm transition-transform group-hover:scale-110" alt="Profile avatar" />
+                           <img src={user.image} className="w-9 h-9 min-w-[36px] min-h-[36px] shrink-0 object-cover object-center rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-sm transition-transform group-hover:scale-110" alt="Profile avatar" />
                         ) : (
-                           <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex flex-col items-center justify-center text-indigo-700 dark:text-indigo-400 font-black shadow-sm transition-transform group-hover:scale-110">
+                           <div className="w-9 h-9 min-w-[36px] min-h-[36px] shrink-0 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 flex flex-col items-center justify-center text-indigo-700 dark:text-indigo-400 font-black shadow-sm transition-transform group-hover:scale-110">
                                {user.name.charAt(0).toUpperCase()}
                            </div>
                         )}
-                        <div className="text-right hidden sm:block">
-                           <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 transition-colors leading-tight">
-                              Hy, {user.name}
+                        <div className="text-right hidden sm:block shrink-0">
+                           <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 transition-colors leading-tight whitespace-nowrap">
+                               Hy, {user.name}
                            </p>
-                           <p className="text-[9px] font-black text-indigo-500/60 dark:text-indigo-400/60 uppercase tracking-[0.2em]">{user.role}</p>
+                           <p className="text-[9px] font-black text-indigo-500/60 dark:text-indigo-400/60 uppercase tracking-[0.2em] whitespace-nowrap">{user.role}</p>
                         </div>
                      </Link>
                   </div>
-                  <button onClick={handleLogout} className="hidden lg:block bg-red-50 hover:bg-red-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/50 text-red-600 dark:text-rose-400 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm">
+                  <button onClick={handleLogout} className="hidden lg:block bg-red-50 hover:bg-red-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/50 text-red-600 dark:text-rose-400 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm shrink-0">
                     Logout
                   </button>
                   <button 

@@ -165,14 +165,28 @@ export default function PaymentPage() {
                   if (selectedFile && selectedFile.size > 1 * 1024 * 1024) {
                     toast.error("File terlalu besar. Maksimal ukuran file adalah 1MB");
                     e.target.value = ""; // Reset input
+                    e.target.setCustomValidity("Ukuran file melebihi 1MB. Silakan pilih file yang lebih kecil.");
                     setFile(null);
                     return;
                   }
+                  e.target.setCustomValidity("");
                   setFile(selectedFile || null);
+                }}
+                onInvalid={(e) => {
+                   const target = e.target as HTMLInputElement;
+                   if (!target.value && !target.validationMessage.includes("1MB")) {
+                      target.setCustomValidity("Harap unggah bukti pembayaran");
+                   }
+                }}
+                onInput={(e) => {
+                   const target = e.target as HTMLInputElement;
+                   if (target.value && !target.validationMessage.includes("1MB")) {
+                      target.setCustomValidity("");
+                   }
                 }}
                 className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-300 cursor-pointer"
               />
-              <button type="submit" className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl mt-4 active:scale-95 transition-all outline-none">
+              <button type="submit" className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl mt-4 active:scale-95 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed">
                 Submit Receipt
               </button>
             </form>

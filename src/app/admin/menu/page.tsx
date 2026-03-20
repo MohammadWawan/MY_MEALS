@@ -38,18 +38,35 @@ export default function AdminMenu() {
      setForm(f => ({ ...f, nutrition: newNutri }));
   };
 
+  
+  const addNutritionRow = () => setForm(f => ({ ...f, nutrition: [...f.nutrition, {indicator: "", value: ""}] }));
+  const updateNutrition = (index: number, field: "indicator" | "value", val: string) => {
+     const newNutri = [...form.nutrition];
+     newNutri[index][field] = val;
+     setForm(f => ({ ...f, nutrition: newNutri }));
+  };
+  const removeNutritionRow = (index: number) => {
+     const newNutri = form.nutrition.filter((_, i) => i !== index);
+     setForm(f => ({ ...f, nutrition: newNutri }));
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 1 * 1024 * 1024) {
         toast.error("File terlalu besar. Maksimal ukuran file adalah 1MB");
+        e.target.value = "";
+        e.target.setCustomValidity("Ukuran file melebihi 1MB. Silakan pilih file yang lebih kecil.");
         return;
       }
+      e.target.setCustomValidity("");
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm(prev => ({ ...prev, ImageUrl: reader.result as string }));
       };
       reader.readAsDataURL(file);
+    } else {
+      e.target.setCustomValidity("");
     }
   };
 
@@ -192,6 +209,19 @@ export default function AdminMenu() {
                  </div>
                </div>
 
+               
+               <div>
+                 <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Nutrition Facts (Optional)</label>
+                 {form.nutrition.map((n, idx) => (
+                    <div key={idx} className="flex gap-2 mb-2">
+                       <input type="text" placeholder="Indicator (e.g. Calories)" value={n.indicator} onChange={e => updateNutrition(idx, 'indicator', e.target.value)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                       <input type="text" placeholder="Value (e.g. 250 kcal)" value={n.value} onChange={e => updateNutrition(idx, 'value', e.target.value)} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                       <button type="button" onClick={() => removeNutritionRow(idx)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"><XCircle className="w-5 h-5"/></button>
+                    </div>
+                 ))}
+                 <button type="button" onClick={addNutritionRow} className="text-xs font-bold text-indigo-600 dark:text-indigo-400 mt-2 flex items-center gap-1"><Plus className="w-3 h-3"/> Add Nutrition Info</button>
+               </div>
+
                <div>
                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2">Description</label>
                  <textarea rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Healthy description for nutritional content..." />
@@ -226,7 +256,7 @@ export default function AdminMenu() {
                    <div className="bg-zinc-100 dark:bg-zinc-800 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
                       <ImageIcon className="text-zinc-400" />
                    </div>
-                   <input required={!editingId} key={fileKey} type="file" accept="image/*" onChange={handleImageUpload} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400" />
+                   <input required={!editingId} key={fileKey} type="file" accept="image/*" onChange={handleImageUpload} onInvalid={(e) => { const target = e.target as HTMLInputElement; if (!target.value && !target.validationMessage.includes("1MB")) { target.setCustomValidity("Harap unggah gambar menu"); } }} onInput={(e) => { const target = e.target as HTMLInputElement; if (target.value && !target.validationMessage.includes("1MB")) { target.setCustomValidity(""); } }} className="flex-1 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-400" />
                  </div>
                </div>
 

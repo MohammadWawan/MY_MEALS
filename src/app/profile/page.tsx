@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { Camera, Save, User as UserIcon } from "lucide-react";
+import { updateEmployee } from "@/app/actions";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -14,6 +16,7 @@ export default function ProfilePage() {
     image: user?.image || "",
   });
   const [success, setSuccess] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   if (!user) {
     router.replace("/auth/login");
@@ -23,6 +26,11 @@ export default function ProfilePage() {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 1 * 1024 * 1024) {
+        toast.error("Ukuran file melebihi 1MB. Silakan pilih foto yang lebih kecil.");
+        e.target.value = "";
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm(prev => ({ ...prev, image: reader.result as string }));
@@ -31,11 +39,24 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ name: form.name, image: form.image });
-    setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
+    setSaving(true);
+    try {
+      // 1. Save to DB
+      await updateEmployee(user.id, { name: form.name, image: form.image });
+      
+      // 2. Update local state & localStorage
+      updateUser({ name: form.name, image: form.image });
+      
+      setSuccess(true);
+      toast.success("Profile berhasil diperbarui!");
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (error) {
+      toast.error("Gagal memperbarui profil.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

@@ -63,22 +63,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Role realtime update poll
     let interval: any;
     const startPolling = (u: User) => {
-       interval = setInterval(async () => {
+       const syncUser = async () => {
           try {
              const freshUser = await getUser(u.id);
              setUser(prevUser => {
-                if (prevUser && freshUser && freshUser.role !== prevUser.role) {
-                   const updatedUser = { ...prevUser, role: freshUser.role as Role };
-                   const isLocal = !!localStorage.getItem("medpos_auth");
-                   const authData = JSON.stringify({ user: updatedUser, expiry: authExpiry });
-                   if (isLocal) localStorage.setItem("medpos_auth", authData);
-                   else sessionStorage.setItem("medpos_auth", authData);
-                   return updatedUser;
+                if (prevUser && freshUser) {
+                   const newRole = freshUser.role as Role;
+                   const newImage = freshUser.image || undefined;
+                   const newName = freshUser.name;
+                   
+                   const hasChanges = 
+                      newRole !== prevUser.role || 
+                      newImage !== prevUser.image || 
+                      newName !== prevUser.name;
+                      
+                   if (hasChanges) {
+                      const updatedUser: User = { 
+                         ...prevUser, 
+                         role: newRole,
+                         image: newImage,
+                         name: newName
+                      };
+                      const isLocal = !!localStorage.getItem("medpos_auth");
+                      const authData = JSON.stringify({ user: updatedUser, expiry: authExpiry });
+                      if (isLocal) localStorage.setItem("medpos_auth", authData);
+                      else sessionStorage.setItem("medpos_auth", authData);
+                      return updatedUser;
+                   }
                 }
                 return prevUser;
              });
           } catch (e) {}
-       }, 5000);
+       };
+
+       // Execute immediately to sync profile data (like image/name) on layout mount
+       syncUser();
+       interval = setInterval(syncUser, 5000);
     };
 
     if (initialUser) {
@@ -107,7 +127,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateUser = (data: Partial<User>) => {
-    if (user) setUser({ ...user, ...data });
+    if (user) {
+       const newUser = { ...user, ...data };
+       setUser(newUser);
+       // Sync to storage
+       const isLocal = !!localStorage.getItem("medpos_auth");
+       const storedStr = localStorage.getItem("medpos_auth") || sessionStorage.getItem("medpos_auth");
+       if (storedStr) {
+          try {
+             const parsed = JSON.parse(storedStr);
+             parsed.user = newUser;
+             const authData = JSON.stringify(parsed);
+             if (isLocal) localStorage.setItem("medpos_auth", authData);
+             else sessionStorage.setItem("medpos_auth", authData);
+          } catch(e) {}
+       }
+    }
   };
 
   const addToCart = (item: CartItem) => {
@@ -140,6 +175,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const clearCart = () => setCart([]);
+
+  // Inactivity auto-logout logic (1 Hour)
+  useEffect(() => {
+    if (!user) return;
+
+    let timeout: NodeJS.Timeout;
+    
+    const resetInactivityTimer = () => {
+      clearTimeout(timeout);
+      // 1 hour = 3600000 ms
+      timeout = setTimeout(() => {
+        logout();
+        window.location.href = "/auth/login";
+      }, 1800000);
+    };
+
+    let lastExecution = 0;
+    const handleActivity = () => {
+      const now = Date.now();
+      // Throttle event listener to run at most once per second
+      if (now - lastExecution > 1000) {
+        lastExecution = now;
+        resetInactivityTimer();
+        
+        // Update session expiry in storage to keep it fresh
+        const storedStr = localStorage.getItem("medpos_auth") || sessionStorage.getItem("medpos_auth");
+        if (storedStr) {
+           try {
+              const parsed = JSON.parse(storedStr);
+              // Extend the expiry by 3 hours from the current activity
+              parsed.expiry = new Date().getTime() + (3 * 60 * 60 * 1000);
+              const authData = JSON.stringify(parsed);
+              if (localStorage.getItem("medpos_auth")) localStorage.setItem("medpos_auth", authData);
+              else sessionStorage.setItem("medpos_auth", authData);
+           } catch(e) {}
+        }
+      }
+    };
+
+    // Initialize the timer
+    resetInactivityTimer();
+
+    // List of events indicating user activity
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    
+    activityEvents.forEach(event => window.addEventListener(event, handleActivity));
+
+    return () => {
+      clearTimeout(timeout);
+      activityEvents.forEach(event => window.removeEventListener(event, handleActivity));
+    };
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, updateUser, cart, addToCart, removeFromCart, updateQty, clearCart }}>

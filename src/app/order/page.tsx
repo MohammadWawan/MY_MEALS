@@ -165,12 +165,12 @@ export default function OrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0a] text-black dark:text-zinc-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-50 dark:bg-[#0a0a0a] text-black dark:text-black dark:text-zinc-100 flex flex-col font-sans">
       {/* Header Section */}
       <header className="px-6 py-10 max-w-7xl mx-auto w-full">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
           <div>
-            <h1 className="text-5xl font-black mb-2 tracking-tight bg-gradient-to-r from-zinc-900 dark:from-white to-zinc-500 bg-clip-text text-transparent">Hospital Menu</h1>
+            <h1 className="text-5xl font-black mb-2 tracking-tight bg-gradient-to-r from-zinc-900 dark:from-zinc-900 dark:from-white to-zinc-500 bg-clip-text text-transparent">Hospital Menu</h1>
             <p className="text-zinc-500 font-medium italic">Order fresh meals. Safe to consume for patients.</p>
           </div>
           
@@ -189,7 +189,7 @@ export default function OrderPage() {
               <button 
                 key={cat} 
                 onClick={() => setCurrentCategory(cat)}
-                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${currentCategory === cat ? 'bg-indigo-600 text-black dark:text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}
+                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${currentCategory === cat ? 'bg-indigo-600 text-black dark:text-black dark:text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-900 text-zinc-500 border border-zinc-800'}`}
               >
                 {cat}
               </button>
@@ -202,7 +202,7 @@ export default function OrderPage() {
               placeholder="Search food..." 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
         </div>
@@ -215,7 +215,7 @@ export default function OrderPage() {
             <div className="relative aspect-[4/3] overflow-hidden cursor-pointer" onClick={() => setSelectedItem(item)}>
                <img src={item.imageUrl || item.image || "/placeholder.png"} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                
-               <div className="absolute top-4 left-4 bg-zinc-100 dark:bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-zinc-800">
+               <div className="absolute top-4 left-4 bg-zinc-100 dark:bg-zinc-100 dark:bg-zinc-950/80 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1.5 border border-zinc-800">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   <span className="text-[10px] font-black">{item.rating?.toFixed(1) || "0.0"}</span>
                </div>
