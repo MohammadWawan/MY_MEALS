@@ -75,6 +75,8 @@ export const orders = sqliteTable("order", {
   location: text("location"),
   roomNumber: text("roomNumber"),
   reviewText: text("reviewText"),
+  submittedRating: integer("submittedRating"),
+  updatedAt: integer("updatedAt", { mode: 'timestamp' }),
 });
 
 export const orderItems = sqliteTable("orderItem", {

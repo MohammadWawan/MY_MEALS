@@ -217,7 +217,6 @@ export default function CateringDashboard() {
                       <OrdererBadge order={order} />
                       <div className="flex justify-between items-center text-xs font-black uppercase text-indigo-400">
                          <span>{order.itemDetails.length} Items Selected</span>
-                         {order.status === 'ready' && <button onClick={() => updateStatus(order.id, 'delivering')} className="px-3 py-1 bg-indigo-600 text-white rounded-lg">Kirim</button>}
                       </div>
                     </div>
                  ))}

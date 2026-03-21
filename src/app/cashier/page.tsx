@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Printer, XCircle, Search, Calendar, Banknote, User, CheckCircle, Clock, MapPin, Hash, ShieldCheck, Heart, Trash2, CreditCard } from "lucide-react";
 import { getPendingOrders, updateOrderStatus, deleteOrder } from "@/app/actions";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ export default function CashierDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [mounted, setMounted] = useState(false);
-  const [lastOrderCount, setLastOrderCount] = useState(0);
+  const lastOrderCountRef = useRef(0);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { user } = useAuth();
   const router = useRouter();
@@ -48,24 +48,36 @@ export default function CashierDashboard() {
   useEffect(() => {
     setMounted(true);
     loadOrders();
-    const interval = setInterval(loadOrders, 5000); 
-    return () => clearInterval(interval);
+    const interval = setInterval(loadOrders, 3000); 
+    
+    // Auto-prime audio on first interaction
+    const primeAudio = () => {
+      const a = new Audio('/tingtung.mp3');
+      a.play().catch(() => {});
+      window.removeEventListener('click', primeAudio);
+    };
+    window.addEventListener('click', primeAudio);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('click', primeAudio);
+    };
   }, [loadOrders]);
 
   useEffect(() => {
     const pendingCount = orders.filter(o => o.status === 'received').length;
-    if (pendingCount > lastOrderCount && audioEnabled) {
+    if (pendingCount > lastOrderCountRef.current && audioEnabled) {
        const audio = new Audio('/tingtung.mp3');
        audio.play().catch(e => {
           console.error("Audio play failed", e);
           if (e.name === 'NotAllowedError') {
-             setAudioEnabled(false);
-             toast.error("Izin audio diblokir browser. Klik 'Aktifkan Audio' lagi.");
+             // Try to keep audioEnabled but notify that a click is needed
+             // setAudioEnabled(false); 
           }
        });
     }
-    setLastOrderCount(pendingCount);
-  }, [orders, lastOrderCount, audioEnabled]);
+    lastOrderCountRef.current = pendingCount;
+  }, [orders, audioEnabled]);
 
   // Strict Role Protection
   useEffect(() => {

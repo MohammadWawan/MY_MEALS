@@ -34,17 +34,19 @@ export default function ReportsPage() {
     }
 
     const handleExportCSV = () => {
-        const headers = ["ID", "Status", "Order Time", "Validated Time", "Preparing Time", "Ready Time", "Delivering Time", "Delivered Time", "Total Amount", "Paid"];
+        const headers = ["ID", "Status", "Total Amount", "Ordered Date", "Last Update Date", "Order Time", "Validated Time", "Preparing Time", "Ready Time", "Delivering Time", "Delivered Time", "Paid"];
         const rows = filteredOrders.map(o => [
             o.id, 
             o.status, 
+            o.totalAmount,
+            o.orderDate ? format(new Date(o.orderDate), "dd/MM/yyyy HH:mm") : "-",
+            o.updatedAt ? format(new Date(o.updatedAt), "dd/MM/yyyy HH:mm") : "-",
             formatTime(o.orderDate),
             formatTime(o.validatedAt),
             formatTime(o.preparingAt),
             formatTime(o.readyAt),
             formatTime(o.deliveringAt),
             formatTime(o.deliveredAt),
-            o.totalAmount,
             o.isPaid ? 'Yes' : 'No'
         ]);
         
@@ -67,9 +69,21 @@ export default function ReportsPage() {
 
     const handleExportXLSX = () => {
         // Simple hack: Export as HTML table with .xls extension which excel reads perfectly
-        let tableHTML = `<table border="1"><tr><th>ID</th><th>Status</th><th>Order Time</th><th>Validated</th><th>Preparing</th><th>Ready</th><th>Delivering</th><th>Delivered</th><th>Amount</th></tr>`;
+        let tableHTML = `<table border="1"><tr><th>ID</th><th>Status</th><th>Ordered Date</th><th>Last Update</th><th>ORDR</th><th>VLD</th><th>PRP</th><th>RDY</th><th>OTW</th><th>DLV</th><th>Amount</th></tr>`;
         filteredOrders.forEach(o => {
-            tableHTML += `<tr><td>${o.id}</td><td>${o.status}</td><td>${formatTime(o.orderDate)}</td><td>${formatTime(o.validatedAt)}</td><td>${formatTime(o.preparingAt)}</td><td>${formatTime(o.readyAt)}</td><td>${formatTime(o.deliveringAt)}</td><td>${formatTime(o.deliveredAt)}</td><td>${o.totalAmount}</td></tr>`;
+            tableHTML += `<tr>
+                <td>${o.id}</td>
+                <td>${o.status}</td>
+                <td>${o.orderDate ? format(new Date(o.orderDate), "dd MMM yyyy HH:mm") : "-"}</td>
+                <td>${o.updatedAt ? format(new Date(o.updatedAt), "dd MMM yyyy HH:mm") : "-"}</td>
+                <td>${formatTime(o.orderDate)}</td>
+                <td>${formatTime(o.validatedAt)}</td>
+                <td>${formatTime(o.preparingAt)}</td>
+                <td>${formatTime(o.readyAt)}</td>
+                <td>${formatTime(o.deliveringAt)}</td>
+                <td>${formatTime(o.deliveredAt)}</td>
+                <td>${o.totalAmount}</td>
+            </tr>`;
         });
         tableHTML += `</table>`;
         const uri = 'data:application/vnd.ms-excel;base64,' + btoa(unescape(encodeURIComponent(tableHTML)));
@@ -153,6 +167,8 @@ export default function ReportsPage() {
                                 <th className="p-4 font-bold">ID</th>
                                 <th className="p-4 font-bold">Status</th>
                                 <th className="p-4 font-bold">Amount</th>
+                                <th className="p-4 font-bold text-center">Ordered</th>
+                                <th className="p-4 font-bold text-center">Last Update</th>
                                 <th className="p-4 font-bold bg-blue-50 dark:bg-blue-900/10 border-l border-white dark:border-zinc-800 text-center" title="Order Placed">ORDR</th>
                                 <th className="p-4 font-bold bg-green-50 dark:bg-green-900/10 border-l border-white dark:border-zinc-800 text-center" title="Validated">VLD</th>
                                 <th className="p-4 font-bold bg-amber-50 dark:bg-amber-900/10 border-l border-white dark:border-zinc-800 text-center" title="Preparing">PRP</th>
@@ -178,6 +194,8 @@ export default function ReportsPage() {
                                        </span>
                                     </td>
                                     <td className="p-4 font-medium">Rp {order.totalAmount.toLocaleString()}</td>
+                                    <td className="p-4 text-center font-bold text-[10px] text-zinc-500">{order.orderDate ? format(new Date(order.orderDate), "dd MMM yyyy HH:mm") : "-"}</td>
+                                    <td className="p-4 text-center font-bold text-[10px] text-zinc-500">{order.updatedAt ? format(new Date(order.updatedAt), "dd MMM yyyy HH:mm") : "-"}</td>
                                     
                                     {/* Milestones */}
                                     <td className="p-4 font-mono text-xs text-center border-l border-zinc-100 dark:border-zinc-800">{formatTime(order.orderDate)}</td>

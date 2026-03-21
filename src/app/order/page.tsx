@@ -42,6 +42,8 @@ export default function OrderPage() {
   useEffect(() => {
     setMounted(true);
     fetchMenu();
+    const interval = setInterval(fetchMenu, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchMenu = async () => {
@@ -314,12 +316,12 @@ export default function OrderPage() {
                      try { parsed = JSON.parse(selectedItem.nutrition); } catch(e){}
                      if (parsed.length === 0) return null;
                      return (
-                        <div className="mb-10 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                        <div className="mb-10 flex-shrink-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm">
                            <div className="bg-zinc-100 dark:bg-zinc-800/50 px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 flex justify-between">
                               <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Nutrisi</h4>
                               <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Jumlah</h4>
                            </div>
-                           <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                           <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
                               <table className="w-full">
                                  <tbody className="divide-y divide-zinc-200/50 dark:divide-zinc-800">
                                     {parsed.map((n: any, idx: number) => (

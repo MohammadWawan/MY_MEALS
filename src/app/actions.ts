@@ -113,6 +113,7 @@ export async function createOrder(data: {
     roomNumber: data.roomNumber,
     orderDate: new Date(),
     expectedDate: new Date(new Date().getTime() + (data.deliveryType === 'advance' ? 86400000 : 3600000)), // tomorrow or in 1 hour
+    updatedAt: new Date(),
   });
 
   for (const item of data.items) {
@@ -165,6 +166,7 @@ export async function updateOrderStatus(orderId: string, status: string, isPaid?
   if (cancelReason !== undefined) updateData.cancelReason = cancelReason;
   
   const now = new Date();
+  updateData.updatedAt = now;
   if (status === 'created') updateData.validatedAt = now;
   if (status === 'preparing') updateData.preparingAt = now;
   if (status === 'ready') updateData.readyAt = now;
@@ -358,7 +360,7 @@ export async function toggleFavorite(userId: number, menuId: string) {
 
 export async function rateMenu(orderId: string, menuId: string, rating: number, reviewText?: string, previousRating?: number) {
   // Update order with rating
-  await db.update(orders).set({ reviewText }).where(eq(orders.id, orderId));
+  await db.update(orders).set({ reviewText, submittedRating: rating, updatedAt: new Date() }).where(eq(orders.id, orderId));
 
   const menu = await db.query.menus.findFirst({
     where: eq(menus.id, menuId)
