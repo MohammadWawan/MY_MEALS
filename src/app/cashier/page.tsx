@@ -15,6 +15,7 @@ export default function CashierDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const lastOrderCountRef = useRef(0);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { user } = useAuth();
@@ -90,20 +91,38 @@ export default function CashierDashboard() {
   if (!mounted || !user) return null;
 
   const validatePayment = async (id: string) => {
-    await updateOrderStatus(id, "created", true);
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, isPaid: true, status: "created" } : o));
-    toast.success("Payment validated and forwarded to Catering.");
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Memvalidasi pembayaran...");
+    try {
+      await updateOrderStatus(id, "created", true, undefined, undefined, user?.name);
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, isPaid: true, status: "created" } : o));
+      toast.dismiss(loadingToast);
+      toast.success("Pembayaran valid! Pesanan telah diteruskan ke bagian Dapur.");
+    } catch (e) {
+      toast.dismiss(loadingToast);
+      toast.error("Gagal memvalidasi pembayaran. Silakan coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCancelOrder = async (id: string) => {
     const confirmCancel = confirm("Apakah Anda yakin ingin membatalkan pesanan ini?");
     if (confirmCancel) {
+      if (isSubmitting) return;
+      setIsSubmitting(true);
+      const loadingToast = toast.loading("Membatalkan pesanan...");
       try {
-        await updateOrderStatus(id, "cancelled", false);
+        await updateOrderStatus(id, "cancelled", false, undefined, undefined, user?.name);
         setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "cancelled", isPaid: false } : o));
-        toast.warning("Pesanan dibatalkan.");
+        toast.dismiss(loadingToast);
+        toast.warning("Pesanan berhasil dibatalkan.");
       } catch (e) {
+        toast.dismiss(loadingToast);
         toast.error("Gagal membatalkan pesanan.");
+      } finally {
+        setIsSubmitting(false);
       }
     }
   };
@@ -145,7 +164,7 @@ export default function CashierDashboard() {
 
     const matchesDate = dateFilter 
       ? orderDateStr === dateFilter 
-      : (isToday || !isFinalStatus);
+      : (isToday || !isFinalStatus || searchQuery !== "");
     
     return matchesSearch && matchesDate;
   });
@@ -281,14 +300,16 @@ export default function CashierDashboard() {
 
              {/* Actions */}
              <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800 flex gap-4">
-               {order.status !== 'cancelled' && !order.isPaid ? (
-                 <>
-                   <button onClick={() => handleCancelOrder(order.id)} className="p-5 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl hover:bg-rose-100 transition-all" title="Batalkan Pesanan">
-                      <XCircle className="w-6 h-6" />
-                   </button>
-                   <button onClick={() => validatePayment(order.id)} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[1.5rem] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all text-sm uppercase tracking-widest">Verifikasi</button>
-                 </>
-               ) : (
+                {order.status !== 'cancelled' && !order.isPaid ? (
+                  <>
+                    <button disabled={isSubmitting} onClick={() => handleCancelOrder(order.id)} className="p-5 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl hover:bg-rose-100 transition-all disabled:opacity-50" title="Batalkan Pesanan">
+                       <XCircle className="w-6 h-6" />
+                    </button>
+                    <button disabled={isSubmitting} onClick={() => validatePayment(order.id)} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[1.5rem] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50">
+                       {isSubmitting ? "Memproses..." : "Verifikasi"}
+                    </button>
+                  </>
+                ) : (
                  order.status !== 'cancelled' && (
                    <button onClick={() => handlePrint(order)} className="flex items-center justify-center gap-3 w-full py-5 bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white font-black rounded-[1.5rem] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-sm uppercase tracking-widest">
                      <Printer className="w-5 h-5" /> Cetak Bill

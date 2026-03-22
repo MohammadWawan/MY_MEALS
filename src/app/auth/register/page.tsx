@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const validations = {
     length: password.length >= 5,
@@ -27,22 +28,31 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     if (!isPasswordValid) {
-        toast.error("Please meet all password requirements.");
+        toast.error("Maaf, password Anda belum memenuhi syarat keamanan.");
         return;
     }
     if (password !== confirmPassword) {
-        toast.error("Passwords do not match.");
+        toast.error("Konfirmasi password tidak cocok.");
         return;
     }
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Sedang mendaftarkan akun...");
+
     try {
       await registerUser({ name, email, password });
-      toast.success("Registration successful! Please sign in.");
+      toast.dismiss(loadingToast);
+      toast.success("Registrasi berhasil! Silakan masuk ke akun Anda.");
       setTimeout(() => {
         router.push("/auth/login");
       }, 1500);
     } catch (err: any) {
-      toast.error(err.message || "Something went wrong.");
+      toast.dismiss(loadingToast);
+      toast.error(err.message || "Terjadi kesalahan saat pendaftaran.");
+      setIsSubmitting(false);
     }
   };
 
@@ -153,9 +163,10 @@ export default function RegisterPage() {
             <div>
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-xl bg-indigo-600 px-3 py-4 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all active:scale-[0.98] mt-2"
+                disabled={isSubmitting}
+                className="flex w-full justify-center rounded-xl bg-indigo-600 px-3 py-4 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all active:scale-[0.98] mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign up
+                {isSubmitting ? "Memproses..." : "Sign up"}
               </button>
             </div>
           </form>

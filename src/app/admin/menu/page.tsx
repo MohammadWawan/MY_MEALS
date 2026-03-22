@@ -10,6 +10,7 @@ export default function AdminMenu() {
   const [fileKey, setFileKey] = useState(Date.now());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     getMenus().then(data => setMenuItems(data));
@@ -61,6 +62,10 @@ export default function AdminMenu() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading(editingId ? "Memperbarui menu..." : "Menambah menu baru...");
     
     try {
         const payload = {
@@ -75,10 +80,12 @@ export default function AdminMenu() {
 
         if (editingId) {
              await updateMenu(editingId, payload);
-             toast.success("Menu updated successfully");
+             toast.dismiss(loadingToast);
+             toast.success("Data menu berhasil diperbarui.");
         } else {
              await addMenu(payload);
-             toast.success("Menu added successfully");
+             toast.dismiss(loadingToast);
+             toast.success("Menu baru berhasil ditambahkan.");
         }
 
         const updated = await getMenus();
@@ -95,8 +102,11 @@ export default function AdminMenu() {
             nutrition: [] 
         });
         setFileKey(Date.now());
-    } catch(err) {
-        toast.error("An error occurred");
+        setIsSubmitting(false);
+    } catch(err: any) {
+        toast.dismiss(loadingToast);
+        toast.error(err.message || "Gagal menyimpan menu. Pastikan koneksi stabil.");
+        setIsSubmitting(false);
     }
   };
 
@@ -126,14 +136,17 @@ export default function AdminMenu() {
   };
 
   const handleDelete = async (id: string) => {
-      if(confirm("Are you sure you want to delete this menu item?")) {
+      if(confirm("Apakah Anda yakin ingin menghapus menu ini dari katalog?")) {
+         const loadingToast = toast.loading("Menghapus menu...");
          try {
             await deleteMenu(id);
-            toast.success("Menu deleted");
+            toast.dismiss(loadingToast);
+            toast.success("Menu berhasil dihapus.");
             const updated = await getMenus();
             setMenuItems(updated);
          } catch(e) {
-            toast.error("Failed to delete menu.");
+            toast.dismiss(loadingToast);
+            toast.error("Gagal menghapus menu. Menu mungkin masih terikat dengan data pesanan.");
          }
       }
   };
@@ -239,16 +252,16 @@ export default function AdminMenu() {
                  </div>
                </div>
 
-               <div className="flex gap-4">
-                  <button type="submit" className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-600/20">
-                    <Save className="w-5 h-5" /> {editingId ? "Update Menu" : "Save Item to Menu"}
-                  </button>
-                  {editingId && (
-                     <button type="button" onClick={handleCancelEdit} className="px-6 flex items-center justify-center gap-2 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold py-3 rounded-xl transition-all active:scale-95">
-                        <XCircle className="w-5 h-5" /> Cancel
-                     </button>
-                  )}
-               </div>
+                <div className="flex gap-4">
+                   <button type="submit" disabled={isSubmitting} className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                     <Save className="w-5 h-5" /> {isSubmitting ? "Memproses..." : (editingId ? "Update Menu" : "Save Item to Menu")}
+                   </button>
+                   {editingId && (
+                      <button type="button" disabled={isSubmitting} onClick={handleCancelEdit} className="px-6 flex items-center justify-center gap-2 bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-bold py-3 rounded-xl transition-all active:scale-95 disabled:opacity-50">
+                         <XCircle className="w-5 h-5" /> Cancel
+                      </button>
+                   )}
+                </div>
             </form>
          </div>
 

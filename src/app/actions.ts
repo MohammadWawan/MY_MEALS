@@ -159,7 +159,7 @@ export async function getFilteredOrders(startDate?: string, endDate?: string) {
   return await getPendingOrders();
 }
 
-export async function updateOrderStatus(orderId: string, status: string, isPaid?: boolean, proofUrl?: string, cancelReason?: string) {
+export async function updateOrderStatus(orderId: string, status: string, isPaid?: boolean, proofUrl?: string, cancelReason?: string, updatedByName?: string) {
   const updateData: any = { status };
   if (isPaid !== undefined) updateData.isPaid = isPaid;
   if (proofUrl !== undefined) updateData.deliveryProofUrl = proofUrl;
@@ -167,11 +167,11 @@ export async function updateOrderStatus(orderId: string, status: string, isPaid?
   
   const now = new Date();
   updateData.updatedAt = now;
-  if (status === 'created') updateData.validatedAt = now;
-  if (status === 'preparing') updateData.preparingAt = now;
-  if (status === 'ready') updateData.readyAt = now;
-  if (status === 'delivering') updateData.deliveringAt = now;
-  if (status === 'delivered') updateData.deliveredAt = now;
+  if (status === 'created') { updateData.validatedAt = now; if (updatedByName) updateData.validatedByName = updatedByName; }
+  if (status === 'preparing') { updateData.preparingAt = now; if (updatedByName) updateData.preparingByName = updatedByName; }
+  if (status === 'ready') { updateData.readyAt = now; if (updatedByName) updateData.readyByName = updatedByName; }
+  if (status === 'delivering') { updateData.deliveringAt = now; if (updatedByName) updateData.deliveringByName = updatedByName; }
+  if (status === 'delivered') { updateData.deliveredAt = now; if (updatedByName) updateData.deliveredByName = updatedByName; }
 
   await db.update(orders).set(updateData).where(eq(orders.id, orderId));
   
@@ -200,6 +200,15 @@ export async function deleteOrder(orderId: string) {
 }
 
 export async function registerUser(data: any) {
+  // Check if user exists
+  const existing = await db.query.users.findFirst({
+    where: eq(users.email, data.email)
+  });
+
+  if (existing) {
+    throw new Error("Email ini sudah terdaftar. Silakan gunakan email lain atau masuk ke akun Anda.");
+  }
+
   let role = data.role || "customer";
   // Override via keyword if role not explicitly requested (for easy dev)
   if (!data.role) {
@@ -210,17 +219,20 @@ export async function registerUser(data: any) {
      else if (data.email.includes("cashier")) role = "cashier";
   }
 
-  await db.insert(users).values({
-     name: data.name,
-     email: data.email,
-     password: data.password, // In real world: hash password!
-     role: role,
-     employeeId: data.employeeId || null,
-     createdAt: new Date(),
-     updatedAt: new Date()
-  });
-
-  return { success: true };
+  try {
+    await db.insert(users).values({
+      name: data.name,
+      email: data.email,
+      password: data.password, // In real world: hash password!
+      role: role,
+      employeeId: data.employeeId || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    return { success: true };
+  } catch (err) {
+    throw new Error("Gagal mendaftarkan akun. Silakan coba beberapa saat lagi.");
+  }
 }
 
 export async function loginUser(data: any) {
@@ -229,7 +241,7 @@ export async function loginUser(data: any) {
   });
 
   if (!account || account.password !== data.password) {
-     throw new Error("Invalid credentials");
+     throw new Error("Email atau password yang Anda masukkan salah.");
   }
 
   return {
@@ -246,7 +258,7 @@ export async function requestPasswordReset(email: string) {
     where: eq(users.email, email)
   });
 
-  if (!account) throw new Error("Email not found");
+  if (!account) throw new Error("Email tidak ditemukan dalam sistem kami.");
 
   const resetToken = generateId() + generateId();
   const resetTokenExpiry = new Date();
@@ -264,7 +276,7 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
   });
 
   if (!account || !account.resetTokenExpiry || account.resetTokenExpiry < new Date()) {
-     throw new Error("Invalid or expired token");
+     throw new Error("Link reset password tidak valid atau sudah kedaluwarsa.");
   }
 
   await db.update(users).set({ password: newPassword, resetToken: null }).where(eq(users.id, account.id));

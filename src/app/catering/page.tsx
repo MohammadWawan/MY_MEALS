@@ -14,6 +14,7 @@ export default function CateringDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [printOrder, setPrintOrder] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -59,9 +60,20 @@ export default function CateringDashboard() {
   if (!mounted || !user) return null;
 
   const updateStatus = async (id: string, newStatus: string) => {
-    await updateOrderStatus(id, newStatus);
-    setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
-    toast.success(`Order ${id} updated to ${newStatus}`);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Memperbarui status pesanan...");
+    try {
+      await updateOrderStatus(id, newStatus, undefined, undefined, undefined, user?.name);
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
+      toast.dismiss(loadingToast);
+      toast.success(`Status pesanan ${id} berhasil diperbarui.`);
+    } catch (e) {
+      toast.dismiss(loadingToast);
+      toast.error("Gagal memperbarui status. Silakan coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePrint = (order: any) => {
@@ -85,7 +97,7 @@ export default function CateringDashboard() {
 
     const matchesDate = dateFilter 
       ? orderDateStr === dateFilter 
-      : (isToday || !isFinalStatus);
+      : (isToday || !isFinalStatus || searchQuery !== "");
 
     const matchesStatus = statusFilter === "all" || o.status === statusFilter;
 
@@ -175,11 +187,11 @@ export default function CateringDashboard() {
                       </div>
                       <div className="flex gap-2">
                         <button 
-                          disabled={order.orderType === 'doctor' && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date()}
+                          disabled={isSubmitting || (order.orderType === 'doctor' && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date())}
                           onClick={() => updateStatus(order.id, 'preparing')} 
                           className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-indigo-600/20 disabled:bg-zinc-300 disabled:shadow-none"
                         >
-                          {order.orderType === 'doctor' && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date() ? 'Locked (Besok)' : 'Mulai Masak'}
+                          {isSubmitting ? 'Memproses...' : (order.orderType === 'doctor' && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date() ? 'Locked (Besok)' : 'Mulai Masak')}
                         </button>
                         <button onClick={() => handlePrint(order)} className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
                            <Search className="w-4 h-4" />
@@ -201,7 +213,9 @@ export default function CateringDashboard() {
                       <div className="space-y-1 mb-6 border-t border-zinc-100 dark:border-zinc-800 pt-3">
                          {order.itemDetails.map((it: any, i: number) => <div key={i} className="flex justify-between text-xs"><span>{it.name}</span> <span className="font-bold">x{it.qty}</span></div>)}
                       </div>
-                      <button onClick={() => updateStatus(order.id, 'ready')} className="w-full py-3 bg-amber-500 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-amber-500/20">Pesanan Siap</button>
+                      <button disabled={isSubmitting} onClick={() => updateStatus(order.id, 'ready')} className="w-full py-3 bg-amber-500 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50">
+                        {isSubmitting ? 'Memproses...' : 'Pesanan Siap'}
+                      </button>
                     </div>
                  ))}
                </div>

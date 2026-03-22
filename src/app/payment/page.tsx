@@ -12,6 +12,7 @@ export default function PaymentPage() {
   const [method, setMethod] = useState("");
   const [showPopup, setShowPopup] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
   const [discount, setDiscount] = useState(0);
@@ -28,52 +29,67 @@ export default function PaymentPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (file) {
-      // Convert file to base64
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
+    if (!file || isSubmitting) return;
 
-        // Determine if it's advance order from URL query param
-        const searchParams = new URLSearchParams(window.location.search);
-        const isAdvance = searchParams.get("advance") === "true";
-        const mrn = searchParams.get("mrn") || undefined;
-        const description = searchParams.get("desc") || undefined;
-        const floor = searchParams.get("floor") || undefined;
-        const location = searchParams.get("location") || undefined;
-        const roomNumber = searchParams.get("roomNumber") || undefined;
-        const orderType = searchParams.get("orderType") || "customer";
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Sedang mengirim pesanan...");
 
-        const orderData = {
-           userId: user?.id || 0,
-           totalAmount: cartTotal,
-           deliveryType: isAdvance ? 'advance' : 'immediate',
-           status: "received", // pending catering/cashier action
-           isPaid: false, // not verified yet
-           paymentMethod: method,
-           receiptImageUrl: base64String,
-           mrn: mrn,
-           description: description,
-           orderType: orderType,
-           floor: floor,
-           location: location,
-           roomNumber: roomNumber,
-           items: cart.map(c => ({
-              productId: c.id,
-              productName: c.name,
-              price: c.price,
-              quantity: c.qty
-           }))
-        };
+    try {
+      // Convert file to base64 using a Promise for proper async/await
+      const base64String = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Gagal membaca file"));
+        reader.readAsDataURL(file);
+      });
 
-        await createOrder(orderData);
-        
-        alert("Receipt uploaded successfully! \nYour order has been sent to the Cashier for validation.");
-        setShowPopup(false);
-        clearCart();
-        router.replace("/tracking");
+      // Determine if it's advance order from URL query param
+      const searchParams = new URLSearchParams(window.location.search);
+      const isAdvance = searchParams.get("advance") === "true";
+      const mrn = searchParams.get("mrn") || undefined;
+      const description = searchParams.get("desc") || undefined;
+      const floor = searchParams.get("floor") || undefined;
+      const location = searchParams.get("location") || undefined;
+      const roomNumber = searchParams.get("roomNumber") || undefined;
+      const orderType = searchParams.get("orderType") || "customer";
+
+      const orderData = {
+         userId: user?.id || 0,
+         totalAmount: cartTotal,
+         deliveryType: isAdvance ? 'advance' : 'immediate',
+         status: "received", 
+         isPaid: false, 
+         paymentMethod: method,
+         receiptImageUrl: base64String,
+         mrn: mrn,
+         description: description,
+         orderType: orderType,
+         floor: floor,
+         location: location,
+         roomNumber: roomNumber,
+         items: cart.map(c => ({
+            productId: c.id,
+            productName: c.name,
+            price: c.price,
+            quantity: c.qty
+         }))
       };
-      reader.readAsDataURL(file);
+
+      await createOrder(orderData);
+      
+      toast.dismiss(loadingToast);
+      toast.success("Pesanan Terkirim! \nBukti pembayaran Anda sedang divalidasi oleh kasir.", {
+         duration: 5000
+      });
+      
+      setShowPopup(false);
+      clearCart();
+      router.replace("/tracking");
+    } catch (err: any) {
+      toast.dismiss(loadingToast);
+      console.error(err);
+      toast.error("Gagal memproses pesanan. Silakan coba lagi nanti.");
+      setIsSubmitting(false);
     }
   };
 
@@ -204,8 +220,8 @@ export default function PaymentPage() {
                 }}
                 className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-300 cursor-pointer"
               />
-              <button type="submit" className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl mt-4 active:scale-95 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed">
-                Submit Receipt
+              <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl mt-4 active:scale-95 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                {isSubmitting ? "Processing..." : "Submit Receipt"}
               </button>
             </form>
           </div>

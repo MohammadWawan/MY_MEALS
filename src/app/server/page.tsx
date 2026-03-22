@@ -20,6 +20,7 @@ export default function WaiterDashboard() {
   const [fullPhoto, setFullPhoto] = useState<string | null>(null);
   const [lastReadyCount, setLastReadyCount] = useState(0);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchOrders = useCallback(async () => {
@@ -75,12 +76,19 @@ export default function WaiterDashboard() {
   if (!mounted || !user) return null;
 
   const handleUpdateStatus = async (id: string, nextStatus: string, proofUrl?: string) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Memperbarui status pengiriman...");
     try {
-      await updateOrderStatus(id, nextStatus, undefined, proofUrl);
+      await updateOrderStatus(id, nextStatus, undefined, proofUrl, undefined, user?.name);
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: nextStatus, deliveryProofUrl: proofUrl || o.deliveryProofUrl } : o));
-      toast.success(`Order ${id} status updated to ${nextStatus}`);
+      toast.dismiss(loadingToast);
+      toast.success(`Pesanan ${id} berhasil diperbarui.`);
     } catch (e) {
-      toast.error("Gagal memperbarui status");
+      toast.dismiss(loadingToast);
+      toast.error("Gagal memperbarui status pengiriman. Silakan coba lagi.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -122,7 +130,7 @@ export default function WaiterDashboard() {
 
     const matchesDate = dateFilter 
       ? orderDateStr === dateFilter 
-      : (isToday || !isFinalStatus);
+      : (isToday || !isFinalStatus || searchQuery !== "");
 
     const matchesStatus = statusFilter === "all" || o.status === statusFilter;
 
@@ -243,8 +251,8 @@ export default function WaiterDashboard() {
 
                   <div className="mt-auto pt-6 border-t border-zinc-100 dark:border-zinc-800">
                      {order.status === 'ready' && (
-                        <button onClick={() => handleUpdateStatus(order.id, 'delivering')} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95">
-                           Terima & Kirim Sekarang
+                        <button disabled={isSubmitting} onClick={() => handleUpdateStatus(order.id, 'delivering')} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/30 transition-all active:scale-95 disabled:opacity-50">
+                           {isSubmitting ? 'Memproses...' : 'Terima & Kirim Sekarang'}
                         </button>
                      )}
                      {order.status === 'delivering' && (

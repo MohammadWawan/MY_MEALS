@@ -77,6 +77,11 @@ export const orders = sqliteTable("order", {
   reviewText: text("reviewText"),
   submittedRating: integer("submittedRating"),
   updatedAt: integer("updatedAt", { mode: 'timestamp' }),
+  validatedByName: text("validatedByName"),
+  preparingByName: text("preparingByName"),
+  readyByName: text("readyByName"),
+  deliveringByName: text("deliveringByName"),
+  deliveredByName: text("deliveredByName"),
 });
 
 export const orderItems = sqliteTable("orderItem", {

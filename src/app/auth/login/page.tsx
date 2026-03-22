@@ -15,9 +15,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Sedang masuk...");
+
     try {
       const dbUser = await loginUser({ email, password });
       
@@ -30,6 +36,8 @@ export default function LoginPage() {
 
       }, rememberMe);
 
+      toast.dismiss(loadingToast);
+      toast.success(`Selamat datang kembali, ${dbUser.name}!`);
 
       // Route based on role rules
       if (dbUser.role === "admin") router.push("/");
@@ -39,7 +47,9 @@ export default function LoginPage() {
       else if (dbUser.role === "cashier") router.push("/cashier");
 
     } catch (err: any) {
-       toast.error(err.message || "Incorrect email or password");
+       toast.dismiss(loadingToast);
+       toast.error(err.message || "Email atau password salah.");
+       setIsSubmitting(false);
     }
   };
 
@@ -122,9 +132,10 @@ export default function LoginPage() {
             <div>
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-xl bg-indigo-600 px-3 py-4 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all active:scale-[0.98]"
+                disabled={isSubmitting}
+                className="flex w-full justify-center rounded-xl bg-indigo-600 px-3 py-4 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign in
+                {isSubmitting ? "Memproses..." : "Sign in"}
               </button>
             </div>
           </form>

@@ -34,19 +34,20 @@ export default function ReportsPage() {
     }
 
     const handleExportCSV = () => {
-        const headers = ["ID", "Status", "Total Amount", "Ordered Date", "Last Update Date", "Order Time", "Validated Time", "Preparing Time", "Ready Time", "Delivering Time", "Delivered Time", "Paid"];
+        const headers = ["ID", "Customer Name", "Status", "Total Amount", "Ordered Date", "Last Update Date", "Order Time", "Validated Time", "Preparing Time", "Ready Time", "Delivering Time", "Delivered Time", "Paid"];
         const rows = filteredOrders.map(o => [
             o.id, 
+            o.user?.name || "-",
             o.status, 
             o.totalAmount,
             o.orderDate ? format(new Date(o.orderDate), "dd/MM/yyyy HH:mm") : "-",
             o.updatedAt ? format(new Date(o.updatedAt), "dd/MM/yyyy HH:mm") : "-",
             formatTime(o.orderDate),
-            formatTime(o.validatedAt),
-            formatTime(o.preparingAt),
-            formatTime(o.readyAt),
-            formatTime(o.deliveringAt),
-            formatTime(o.deliveredAt),
+            `${formatTime(o.validatedAt)} ${o.validatedByName ? '('+o.validatedByName+')' : ''}`,
+            `${formatTime(o.preparingAt)} ${o.preparingByName ? '('+o.preparingByName+')' : ''}`,
+            `${formatTime(o.readyAt)} ${o.readyByName ? '('+o.readyByName+')' : ''}`,
+            `${formatTime(o.deliveringAt)} ${o.deliveringByName ? '('+o.deliveringByName+')' : ''}`,
+            `${formatTime(o.deliveredAt)} ${o.deliveredByName ? '('+o.deliveredByName+')' : ''}`,
             o.isPaid ? 'Yes' : 'No'
         ]);
         
@@ -69,19 +70,20 @@ export default function ReportsPage() {
 
     const handleExportXLSX = () => {
         // Simple hack: Export as HTML table with .xls extension which excel reads perfectly
-        let tableHTML = `<table border="1"><tr><th>ID</th><th>Status</th><th>Ordered Date</th><th>Last Update</th><th>ORDR</th><th>VLD</th><th>PRP</th><th>RDY</th><th>OTW</th><th>DLV</th><th>Amount</th></tr>`;
+        let tableHTML = `<table border="1"><tr><th>ID</th><th>Customer Name</th><th>Status</th><th>Ordered Date</th><th>Last Update</th><th>ORDR</th><th>VLD</th><th>PRP</th><th>RDY</th><th>OTW</th><th>DLV</th><th>Amount</th></tr>`;
         filteredOrders.forEach(o => {
             tableHTML += `<tr>
                 <td>${o.id}</td>
+                <td>${o.user?.name || "-"}</td>
                 <td>${o.status}</td>
                 <td>${o.orderDate ? format(new Date(o.orderDate), "dd MMM yyyy HH:mm") : "-"}</td>
                 <td>${o.updatedAt ? format(new Date(o.updatedAt), "dd MMM yyyy HH:mm") : "-"}</td>
                 <td>${formatTime(o.orderDate)}</td>
-                <td>${formatTime(o.validatedAt)}</td>
-                <td>${formatTime(o.preparingAt)}</td>
-                <td>${formatTime(o.readyAt)}</td>
-                <td>${formatTime(o.deliveringAt)}</td>
-                <td>${formatTime(o.deliveredAt)}</td>
+                <td>${formatTime(o.validatedAt)} ${o.validatedByName ? '<br/>'+o.validatedByName : ''}</td>
+                <td>${formatTime(o.preparingAt)} ${o.preparingByName ? '<br/>'+o.preparingByName : ''}</td>
+                <td>${formatTime(o.readyAt)} ${o.readyByName ? '<br/>'+o.readyByName : ''}</td>
+                <td>${formatTime(o.deliveringAt)} ${o.deliveringByName ? '<br/>'+o.deliveringByName : ''}</td>
+                <td>${formatTime(o.deliveredAt)} ${o.deliveredByName ? '<br/>'+o.deliveredByName : ''}</td>
                 <td>${o.totalAmount}</td>
             </tr>`;
         });
@@ -164,47 +166,66 @@ export default function ReportsPage() {
                     <table className="w-full text-left text-sm">
                         <thead className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
                             <tr>
-                                <th className="p-4 font-bold">ID</th>
-                                <th className="p-4 font-bold">Status</th>
-                                <th className="p-4 font-bold">Amount</th>
-                                <th className="p-4 font-bold text-center">Ordered</th>
-                                <th className="p-4 font-bold text-center">Last Update</th>
-                                <th className="p-4 font-bold bg-blue-50 dark:bg-blue-900/10 border-l border-white dark:border-zinc-800 text-center" title="Order Placed">ORDR</th>
-                                <th className="p-4 font-bold bg-green-50 dark:bg-green-900/10 border-l border-white dark:border-zinc-800 text-center" title="Validated">VLD</th>
-                                <th className="p-4 font-bold bg-amber-50 dark:bg-amber-900/10 border-l border-white dark:border-zinc-800 text-center" title="Preparing">PRP</th>
-                                <th className="p-4 font-bold bg-orange-50 dark:bg-orange-900/10 border-l border-white dark:border-zinc-800 text-center" title="Ready for Delivery">RDY</th>
-                                <th className="p-4 font-bold bg-purple-50 dark:bg-purple-900/10 border-l border-white dark:border-zinc-800 text-center" title="On the Way">OTW</th>
-                                <th className="p-4 font-bold bg-emerald-50 dark:bg-emerald-900/10 border-l border-white dark:border-zinc-800 text-center" title="Delivered">DLV</th>
-                                <th className="p-4 font-bold text-center">Proof</th>
+                                <th className="p-4 font-bold whitespace-nowrap">ID</th>
+                                <th className="p-4 font-bold whitespace-nowrap">Customer Name</th>
+                                <th className="p-4 font-bold whitespace-nowrap">Status</th>
+                                <th className="p-4 font-bold whitespace-nowrap">Amount</th>
+                                <th className="p-4 font-bold text-center whitespace-nowrap">Ordered</th>
+                                <th className="p-4 font-bold text-center whitespace-nowrap">Last Update</th>
+                                <th className="p-4 font-bold bg-blue-50 dark:bg-blue-900/10 border-l border-white dark:border-zinc-800 text-center whitespace-nowrap" title="Order Placed">ORDR</th>
+                                <th className="p-4 font-bold bg-green-50 dark:bg-green-900/10 border-l border-white dark:border-zinc-800 text-center whitespace-nowrap" title="Validated">VLD</th>
+                                <th className="p-4 font-bold bg-amber-50 dark:bg-amber-900/10 border-l border-white dark:border-zinc-800 text-center whitespace-nowrap" title="Preparing">PRP</th>
+                                <th className="p-4 font-bold bg-orange-50 dark:bg-orange-900/10 border-l border-white dark:border-zinc-800 text-center whitespace-nowrap" title="Ready for Delivery">RDY</th>
+                                <th className="p-4 font-bold bg-purple-50 dark:bg-purple-900/10 border-l border-white dark:border-zinc-800 text-center whitespace-nowrap" title="On the Way">OTW</th>
+                                <th className="p-4 font-bold bg-emerald-50 dark:bg-emerald-900/10 border-l border-white dark:border-zinc-800 text-center whitespace-nowrap" title="Delivered">DLV</th>
+                                <th className="p-4 font-bold text-center whitespace-nowrap">Proof</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                             {filteredOrders.length === 0 && (
-                                <tr><td colSpan={10} className="p-8 text-center text-zinc-500 italic">No orders found for the selected filter.</td></tr>
+                                <tr><td colSpan={12} className="p-8 text-center text-zinc-500 italic">No orders found for the selected filter.</td></tr>
                             )}
                             {filteredOrders.map(order => (
                                 <tr key={order.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                                    <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100">
+                                    <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                        {order.id}
                                        {order.isPaid && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-emerald-500" title="Paid"></span>}
                                     </td>
-                                    <td className="p-4">
+                                    <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap truncate max-w-[150px]">{order.user?.name || "-"}</td>
+                                    <td className="p-4 whitespace-nowrap">
                                        <span className={`uppercase text-[10px] font-black tracking-widest px-2 py-1 rounded text-white ${order.status === 'cancelled' ? 'bg-red-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}>
                                          {order.status}
                                        </span>
                                     </td>
-                                    <td className="p-4 font-medium">Rp {order.totalAmount.toLocaleString()}</td>
-                                    <td className="p-4 text-center font-bold text-[10px] text-zinc-500">{order.orderDate ? format(new Date(order.orderDate), "dd MMM yyyy HH:mm") : "-"}</td>
-                                    <td className="p-4 text-center font-bold text-[10px] text-zinc-500">{order.updatedAt ? format(new Date(order.updatedAt), "dd MMM yyyy HH:mm") : "-"}</td>
+                                    <td className="p-4 font-medium whitespace-nowrap">Rp {order.totalAmount.toLocaleString()}</td>
+                                    <td className="p-4 text-center font-bold text-[10px] text-zinc-500 whitespace-nowrap">{order.orderDate ? format(new Date(order.orderDate), "dd MMM yyyy HH:mm") : "-"}</td>
+                                    <td className="p-4 text-center font-bold text-[10px] text-zinc-500 whitespace-nowrap">{order.updatedAt ? format(new Date(order.updatedAt), "dd MMM yyyy HH:mm") : "-"}</td>
                                     
                                     {/* Milestones */}
-                                    <td className="p-4 font-mono text-xs text-center border-l border-zinc-100 dark:border-zinc-800">{formatTime(order.orderDate)}</td>
-                                    <td className="p-4 font-mono text-xs text-center border-l border-zinc-100 dark:border-zinc-800">{formatTime(order.validatedAt)}</td>
-                                    <td className="p-4 font-mono text-xs text-center border-l border-zinc-100 dark:border-zinc-800">{formatTime(order.preparingAt)}</td>
-                                    <td className="p-4 font-mono text-xs text-center border-l border-zinc-100 dark:border-zinc-800">{formatTime(order.readyAt)}</td>
-                                    <td className="p-4 font-mono text-xs text-center border-l border-zinc-100 dark:border-zinc-800">{formatTime(order.deliveringAt)}</td>
-                                    <td className="p-4 font-mono text-xs text-center border-l border-zinc-100 dark:border-zinc-800">{formatTime(order.deliveredAt)}</td>
-                                    <td className="p-4 text-center">
+                                    <td className="p-4 text-center border-l border-zinc-100 dark:border-zinc-800 whitespace-nowrap flex-col">
+                                        <div className="font-mono text-xs">{formatTime(order.orderDate)}</div>
+                                    </td>
+                                    <td className="p-4 text-center border-l border-zinc-100 dark:border-zinc-800 whitespace-nowrap flex-col">
+                                        <div className="font-mono text-xs">{formatTime(order.validatedAt)}</div>
+                                        {order.validatedByName && <div className="text-[9px] text-emerald-600 font-bold uppercase">{order.validatedByName}</div>}
+                                    </td>
+                                    <td className="p-4 text-center border-l border-zinc-100 dark:border-zinc-800 whitespace-nowrap flex-col">
+                                        <div className="font-mono text-xs">{formatTime(order.preparingAt)}</div>
+                                        {order.preparingByName && <div className="text-[9px] text-amber-600 font-bold uppercase">{order.preparingByName}</div>}
+                                    </td>
+                                    <td className="p-4 text-center border-l border-zinc-100 dark:border-zinc-800 whitespace-nowrap flex-col">
+                                        <div className="font-mono text-xs">{formatTime(order.readyAt)}</div>
+                                        {order.readyByName && <div className="text-[9px] text-orange-600 font-bold uppercase">{order.readyByName}</div>}
+                                    </td>
+                                    <td className="p-4 text-center border-l border-zinc-100 dark:border-zinc-800 whitespace-nowrap flex-col">
+                                        <div className="font-mono text-xs">{formatTime(order.deliveringAt)}</div>
+                                        {order.deliveringByName && <div className="text-[9px] text-purple-600 font-bold uppercase">{order.deliveringByName}</div>}
+                                    </td>
+                                    <td className="p-4 text-center border-l border-zinc-100 dark:border-zinc-800 whitespace-nowrap flex-col">
+                                        <div className="font-mono text-xs">{formatTime(order.deliveredAt)}</div>
+                                        {order.deliveredByName && <div className="text-[9px] text-emerald-600 font-bold uppercase">{order.deliveredByName}</div>}
+                                    </td>
+                                    <td className="p-4 text-center whitespace-nowrap">
                                        {order.deliveryProofUrl ? (
                                            <button onClick={() => setFullImage(order.deliveryProofUrl)} className="text-xs font-bold text-blue-600 hover:underline">View Proof</button>
                                        ) : (

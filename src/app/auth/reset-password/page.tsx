@@ -14,27 +14,44 @@ function ResetPasswordForm() {
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [generatedToken, setGeneratedToken] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Sedang membangkitkan token...");
+
     try {
       const res = await requestPasswordReset(email);
-      toast.success("Reset Token Generated! Check the box below.");
+      toast.dismiss(loadingToast);
+      toast.success("Token Reset Berhasil Dibuat!");
       setGeneratedToken(res.token);
+      setIsSubmitting(false);
     } catch (err: any) {
-      toast.error(err.message || "Error");
+      toast.dismiss(loadingToast);
+      toast.error(err.message || "Gagal membuat token.");
+      setIsSubmitting(false);
     }
   };
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) return;
+    if (!token || isSubmitting) return;
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Sedang memperbarui password...");
+
     try {
       await resetPasswordWithToken(token, newPassword);
-      toast.success("Password updated successfully!");
+      toast.dismiss(loadingToast);
+      toast.success("Password Anda telah berhasil diperbarui!");
       router.push("/auth/login");
     } catch (err: any) {
-      toast.error(err.message || "Invalid or expired token");
+      toast.dismiss(loadingToast);
+      toast.error(err.message || "Link reset password tidak valid.");
+      setIsSubmitting(false);
     }
   };
 
@@ -69,8 +86,8 @@ function ResetPasswordForm() {
                   <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 dark:text-zinc-100 shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 bg-transparent placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm transition-all" />
                 </div>
               </div>
-              <button type="submit" className="flex w-full justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 px-3 py-4 text-sm font-bold text-white dark:text-zinc-900 shadow-lg hover:opacity-90 transition-all active:scale-[0.98]">
-                Generate Reset Link
+              <button type="submit" disabled={isSubmitting} className="flex w-full justify-center rounded-xl bg-zinc-900 dark:bg-zinc-100 px-3 py-4 text-sm font-bold text-white dark:text-zinc-900 shadow-lg hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50">
+                {isSubmitting ? "Memproses..." : "Generate Reset Link"}
               </button>
             </form>
           ) : (
@@ -81,8 +98,8 @@ function ResetPasswordForm() {
                   <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} className="block w-full rounded-xl border-0 py-3 px-4 text-zinc-900 dark:text-zinc-100 shadow-sm ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 bg-transparent placeholder:text-zinc-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm transition-all" />
                 </div>
               </div>
-              <button type="submit" className="flex w-full justify-center rounded-xl bg-emerald-600 px-3 py-4 text-sm font-bold text-white shadow-lg hover:bg-emerald-700 transition-all active:scale-[0.98]">
-                Save New Password
+              <button type="submit" disabled={isSubmitting} className="flex w-full justify-center rounded-xl bg-emerald-600 px-3 py-4 text-sm font-bold text-white shadow-lg hover:bg-emerald-700 transition-all active:scale-[0.98] disabled:opacity-50">
+                {isSubmitting ? "Menyimpan..." : "Save New Password"}
               </button>
             </form>
           )}
