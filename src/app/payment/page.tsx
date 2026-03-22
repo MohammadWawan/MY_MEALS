@@ -30,6 +30,12 @@ export default function PaymentPage() {
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || isSubmitting) return;
+    
+    if (!user) {
+      toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
+      router.push("/auth/login");
+      return;
+    }
 
     setIsSubmitting(true);
     const loadingToast = toast.loading("Sedang mengirim pesanan...");
@@ -54,7 +60,7 @@ export default function PaymentPage() {
       const orderType = searchParams.get("orderType") || "customer";
 
       const orderData = {
-         userId: user?.id || 0,
+         userId: user.id,
          totalAmount: cartTotal,
          deliveryType: isAdvance ? 'advance' : 'immediate',
          status: "received", 
@@ -87,8 +93,8 @@ export default function PaymentPage() {
       router.replace("/tracking");
     } catch (err: any) {
       toast.dismiss(loadingToast);
-      console.error(err);
-      toast.error("Gagal memproses pesanan. Silakan coba lagi nanti.");
+      console.error("Payment Error:", err);
+      toast.error(err.message || "Gagal memproses pesanan. Silakan coba lagi nanti.");
       setIsSubmitting(false);
     }
   };
