@@ -81,7 +81,11 @@ export default function PaymentPage() {
          }))
       };
 
-      await createOrder(orderData);
+      const result = await createOrder(orderData);
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
       
       toast.dismiss(loadingToast);
       toast.success("Pesanan Terkirim! \nBukti pembayaran Anda sedang divalidasi oleh kasir.", {

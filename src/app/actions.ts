@@ -64,74 +64,80 @@ export async function createOrder(data: {
   roomNumber?: string,
   items: { productId: string, productName: string, price: number, quantity: number }[]
 }) {
-  const resolvedOrderType = data.orderType || "customer";
-  const orderId = generateOrderId(resolvedOrderType);
-  
-  let finalStatus = data.status;
-  let finalIsPaid = data.isPaid;
-  let finalPaymentMethod = data.paymentMethod;
+  try {
+    const resolvedOrderType = data.orderType || "customer";
+    const orderId = generateOrderId(resolvedOrderType);
+    
+    let finalStatus = data.status;
+    let finalIsPaid = data.isPaid;
+    let finalPaymentMethod = data.paymentMethod;
 
-  const user = await db.query.users.findFirst({ where: eq(users.id, data.userId) });
-  if (user?.role === 'doctor') {
-     // Doctor Quota Logic
-     const today = new Date();
-     today.setHours(0,0,0,0);
-     const tomorrow = new Date(today);
-     tomorrow.setDate(tomorrow.getDate() + 1);
+    const user = await db.query.users.findFirst({ where: eq(users.id, data.userId) });
+    if (user?.role === 'doctor') {
+       // Doctor Quota Logic
+       const today = new Date();
+       today.setHours(0,0,0,0);
+       const tomorrow = new Date(today);
+       tomorrow.setDate(tomorrow.getDate() + 1);
 
-     const todaysOrders = await db.query.orders.findMany({
-        where: and(
-           eq(orders.userId, data.userId),
-           gte(orders.orderDate, today),
-           lt(orders.orderDate, tomorrow)
-        )
-     });
+       const todaysOrders = await db.query.orders.findMany({
+          where: and(
+             eq(orders.userId, data.userId),
+             gte(orders.orderDate, today),
+             lt(orders.orderDate, tomorrow)
+          )
+       });
 
-     if (todaysOrders.length > 0) {
-        finalStatus = 'pending-approval';
-     } else {
-        finalStatus = 'created';
-     }
-     finalIsPaid = true;
-     finalPaymentMethod = "doctor_quota";
-  }
+       if (todaysOrders.length > 0) {
+          finalStatus = 'pending-approval';
+       } else {
+          finalStatus = 'created';
+       }
+       finalIsPaid = true;
+       finalPaymentMethod = "doctor_quota";
+    }
 
-  await db.insert(orders).values({
-    id: orderId,
-    userId: data.userId,
-    totalAmount: data.totalAmount,
-    deliveryType: data.deliveryType,
-    status: finalStatus,
-    isPaid: finalIsPaid,
-    paymentMethod: finalPaymentMethod,
-    receiptImageUrl: data.receiptImageUrl,
-    description: data.description,
-    mrn: data.mrn,
-    orderType: resolvedOrderType,
-    floor: data.floor,
-    location: data.location,
-    roomNumber: data.roomNumber,
-    orderDate: new Date(),
-    expectedDate: new Date(new Date().getTime() + (data.deliveryType === 'advance' ? 86400000 : 3600000)), // tomorrow or in 1 hour
-    updatedAt: new Date(),
-  });
-
-  for (const item of data.items) {
-    await db.insert(orderItems).values({
-      id: "IT-" + generateId(),
-      orderId: orderId,
-      productId: item.productId,
-      productName: item.productName,
-      price: item.price,
-      quantity: item.quantity,
+    await db.insert(orders).values({
+      id: orderId,
+      userId: data.userId,
+      totalAmount: data.totalAmount,
+      deliveryType: data.deliveryType,
+      status: finalStatus,
+      isPaid: finalIsPaid,
+      paymentMethod: finalPaymentMethod,
+      receiptImageUrl: data.receiptImageUrl,
+      description: data.description,
+      mrn: data.mrn,
+      orderType: resolvedOrderType,
+      floor: data.floor,
+      location: data.location,
+      roomNumber: data.roomNumber,
+      orderDate: new Date(),
+      expectedDate: new Date(new Date().getTime() + (data.deliveryType === 'advance' ? 86400000 : 3600000)), // tomorrow or in 1 hour
+      updatedAt: new Date(),
     });
-  }
 
-  revalidatePath("/cashier");
-  revalidatePath("/catering");
-  revalidatePath("/tracking");
-  revalidatePath("/reports");
-  return orderId;
+    for (const item of data.items) {
+      await db.insert(orderItems).values({
+        id: "IT-" + generateId(),
+        orderId: orderId,
+        productId: item.productId,
+        productName: item.productName,
+        price: item.price,
+        quantity: item.quantity,
+      });
+    }
+
+    revalidatePath("/cashier");
+    revalidatePath("/catering");
+    revalidatePath("/tracking");
+    revalidatePath("/reports");
+    
+    return { success: true, orderId };
+  } catch (error: any) {
+    console.error("SERVER ACTION ERROR [createOrder]:", error);
+    return { success: false, error: error.message || "Gagal membuat pesanan di server." };
+  }
 }
 
 export async function getPendingOrders() {
