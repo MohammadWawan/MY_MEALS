@@ -89,8 +89,10 @@ export default function Navigation() {
                 {user.role === 'admin' && (
                   <>
                     <Link href="/admin/menu" className={linkClass('/admin/menu', 'emerald')}>Manage Menus</Link>
+                    <Link href="/admin/coupons" className={linkClass('/admin/coupons', 'rose')}>Manage Coupons</Link>
                     <Link href="/admin/doctors" className={linkClass('/admin/doctors', 'indigo')}>Add Doctor</Link>
                     <Link href="/admin/employees" className={linkClass('/admin/employees', 'amber')}>Manage Staff</Link>
+
                   </>
                 )}
               </div>
@@ -177,8 +179,10 @@ export default function Navigation() {
                 {user.role === 'admin' && (
                   <>
                     <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/menu" className={mobileLinkClass('/admin/menu', 'emerald')}>Manage Menus</Link>
+                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/coupons" className={mobileLinkClass('/admin/coupons', 'rose')}>Manage Coupons</Link>
                     <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/doctors" className={mobileLinkClass('/admin/doctors')}>Add Doctor</Link>
                     <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/employees" className={mobileLinkClass('/admin/employees', 'amber')}>Manage Staff</Link>
+
                   </>
                 )}
                 

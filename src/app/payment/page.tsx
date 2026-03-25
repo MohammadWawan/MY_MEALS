@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { createOrder } from "@/app/actions";
+import { createOrder, validateCoupon } from "@/app/actions";
+
 import { toast } from "sonner";
 
 export default function PaymentPage() {
@@ -15,17 +16,72 @@ export default function PaymentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-  const [discount, setDiscount] = useState(0);
-  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const [couponData, setCouponData] = useState<any>(null);
+  const [discountTotal, setDiscountTotal] = useState(0);
+
+  const calculateDiscountValue = (coupon: any) => {
+    if (coupon.discountType === 'percentage') {
+      return subtotal * (coupon.discountValue / 100);
+    } else {
+      return coupon.discountValue;
+    }
+  };
 
   useEffect(() => {
+
     const params = new URLSearchParams(window.location.search);
-    setDiscount(parseFloat(params.get("discount") || "0"));
-    setCouponCode(params.get("coupon"));
+    const code = params.get("coupon");
+    if (code) {
+      setCouponInput(code);
+      validateCoupon(code).then(result => {
+        if (result.success) {
+          const data = result.coupon;
+          setCouponData(data);
+          const discount = calculateDiscountValue(data);
+          setDiscountTotal(discount);
+        }
+      });
+    }
   }, []);
 
-  const cartTotal = subtotal - (subtotal * discount);
+  const handleApplyCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponInput) {
+      setCouponData(null);
+      setDiscountTotal(0);
+      toast.info("Kupon telah dibatalkan.");
+      return;
+    }
+
+    
+    const loadingToast = toast.loading("Validating coupon...");
+    try {
+      const result = await validateCoupon(couponInput);
+      if (!result.success) {
+        toast.error(result.error);
+        setCouponData(null);
+        setDiscountTotal(0);
+      } else {
+        const data = result.coupon;
+        setCouponData(data);
+        const discount = calculateDiscountValue(data);
+        setDiscountTotal(discount);
+        toast.success(`Coupon applied! You got a discount of Rp ${discount.toLocaleString()}`);
+      }
+    } catch (err: any) {
+      toast.error("Gagal terhubung ke server untuk memvalidasi kupon.");
+      setCouponData(null);
+      setDiscountTotal(0);
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  };
+
+
+  const cartTotal = Math.max(0, subtotal - discountTotal);
   const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,12 +129,15 @@ export default function PaymentPage() {
          floor: floor,
          location: location,
          roomNumber: roomNumber,
+         couponCode: couponData?.code || undefined,
+         discountTotal: discountTotal,
          items: cart.map(c => ({
             productId: c.id,
             productName: c.name,
             price: c.price,
             quantity: c.qty
          }))
+
       };
 
       const result = await createOrder(orderData);
@@ -128,17 +187,39 @@ export default function PaymentPage() {
               </div>
            ))}
            
-           {discount > 0 && (
-               <div className="flex justify-between text-sm mb-2 font-bold text-emerald-600 dark:text-emerald-400 border-t border-dashed border-zinc-200 dark:border-zinc-700 pt-2 mt-2">
-                  <span>Kupon {couponCode} (10%)</span>
-                  <span>- Rp {(subtotal * discount).toLocaleString()}</span>
+           <div className="mt-4 pt-4 border-t border-dashed border-zinc-200 dark:border-zinc-700">
+              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Kupon Promo (Hanya bisa diubah di Pesanan)</label>
+              <div className="flex gap-2">
+                <input 
+                  disabled
+                  type="text" 
+                  value={couponInput} 
+                  className="flex-1 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm outline-none cursor-not-allowed opacity-70"
+                />
+              </div>
+           </div>
+
+           {discountTotal > 0 && (
+               <div className="flex justify-between text-sm mb-2 font-bold text-emerald-600 dark:text-emerald-400 mt-4 animate-in slide-in-from-top-2">
+                  <span className="flex items-center gap-1 uppercase tracking-tighter text-[10px]">
+                    Kupon Terpasang: {couponData?.code} ({couponData?.discountType === 'percentage' ? `${couponData.discountValue}%` : 'Fixed'})
+                  </span>
+                  <span>- Rp {discountTotal.toLocaleString()}</span>
                </div>
             )}
 
            <div className="flex justify-between font-black text-xl mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-               <span>Total Pay</span>
+               <span>Total Bayar</span>
                <span className="text-indigo-600 dark:text-indigo-400">Rp {cartTotal.toLocaleString()}</span>
            </div>
+
+           <button 
+             onClick={() => router.push('/order?checkout=true')}
+             className="w-full mt-6 py-3 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl text-xs font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-500 transition-all flex items-center justify-center gap-2"
+           >
+             ← Kembali ke Edit Pesanan / Alamat
+           </button>
+
         </div>
 
         <h3 className="font-bold text-center mb-4 text-zinc-600 dark:text-zinc-400">Select Payment Method</h3>

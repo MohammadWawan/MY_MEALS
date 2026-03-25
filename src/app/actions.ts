@@ -1,9 +1,11 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { menus, orders, orderItems, users, favorites } from "@/lib/schema";
+import { menus, orders, orderItems, users, favorites, coupons } from "@/lib/schema";
+
 import { eq, desc, and, gte, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import nodemailer from 'nodemailer';
 
 const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase();
 
@@ -62,8 +64,11 @@ export async function createOrder(data: {
   floor?: string,
   location?: string,
   roomNumber?: string,
+  couponCode?: string,
+  discountTotal?: number,
   items: { productId: string, productName: string, price: number, quantity: number }[]
 }) {
+
   try {
     const resolvedOrderType = data.orderType || "customer";
     const orderId = generateOrderId(resolvedOrderType);
@@ -112,10 +117,13 @@ export async function createOrder(data: {
       floor: data.floor,
       location: data.location,
       roomNumber: data.roomNumber,
+      couponCode: data.couponCode,
+      discountTotal: data.discountTotal || 0,
       orderDate: new Date(),
       expectedDate: new Date(new Date().getTime() + (data.deliveryType === 'advance' ? 86400000 : 3600000)), // tomorrow or in 1 hour
       updatedAt: new Date(),
     });
+
 
     for (const item of data.items) {
       await db.insert(orderItems).values({
@@ -260,34 +268,94 @@ export async function loginUser(data: any) {
 }
 
 export async function requestPasswordReset(email: string) {
-  const account = await db.query.users.findFirst({
-    where: eq(users.email, email)
-  });
+  try {
+    const account = await db.query.users.findFirst({
+       where: eq(users.email, email)
+    });
 
-  if (!account) throw new Error("Email tidak ditemukan dalam sistem kami.");
+    if (!account) {
+       return { success: false, error: "Email tidak ditemukan dalam sistem kami." };
+    }
 
-  const resetToken = generateId() + generateId();
-  const resetTokenExpiry = new Date();
-  resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 1); // 1 day expiry
+    const resetToken = generateId() + generateId();
+    const resetTokenExpiry = new Date();
+    resetTokenExpiry.setDate(resetTokenExpiry.getDate() + 1); // 1 day expiry
 
-  await db.update(users).set({ resetToken, resetTokenExpiry }).where(eq(users.id, account.id));
+    await db.update(users).set({ resetToken, resetTokenExpiry }).where(eq(users.id, account.id));
 
-  // In real world: Send email here
-  return { token: resetToken };
+    // Send Email via SMTP
+    const transporter = nodemailer.createTransport({
+       host: process.env.SMTP_HOST,
+       port: parseInt(process.env.SMTP_PORT || '465'),
+       secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+       auth: {
+         user: process.env.SMTP_USER,
+         pass: process.env.SMTP_PASS,
+       },
+    });
+
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
+
+    await transporter.sendMail({
+       from: `"My Meals System" <${process.env.SMTP_USER}>`,
+       to: email,
+       subject: "Reset Password - My Meals Hermina",
+       html: `
+         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; border: 1px solid #f1f5f9; border-radius: 24px; background-color: #ffffff; color: #1e293b; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
+           <div style="text-align: center; margin-bottom: 30px;">
+             <h2 style="color: #4f46e5; font-size: 28px; font-weight: 800; margin: 0;">Reset Password</h2>
+             <p style="color: #64748b; margin-top: 8px;">Permintaan Pengaturan Ulang Kata Sandi</p>
+           </div>
+
+           <p style="font-size: 16px; line-height: 1.6;">Halo, <strong>${account.name}</strong>.</p>
+           <p style="font-size: 16px; line-height: 1.6; color: #475569;">Kami menerima permintaan untuk meriset kata sandi akun My Meals Anda. Silakan klik tombol di bawah ini untuk melanjutkan proses pengaturan ulang kata sandi Anda:</p>
+           
+           <div style="text-align: center; margin: 40px 0;">
+             <a href="${resetUrl}" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 14px; font-weight: 700; display: inline-block; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2), 0 2px 4px -1px rgba(79, 70, 229, 0.1);">PULIHKAN PASSWORD</a>
+           </div>
+
+           <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin-top: 30px;">
+             <p style="font-size: 13px; color: #64748b; margin: 0;">
+               <strong>PENTING:</strong> Link ini akan kedaluwarsa secara otomatis dalam waktu <strong>24 jam</strong>. Jika Anda tidak merasa melakukan permintaan ini, abaikan saja email ini atau hubungi tim TI RS Hermina Pasuruan.
+             </p>
+           </div>
+           
+           <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 40px 0;" />
+           
+           <div style="text-align: center;">
+             <p style="color: #94a3b8; font-size: 12px; margin: 0;">&copy; 2026 My Meals Hermina Pasuruan</p>
+             <p style="color: #cbd5e1; font-size: 10px; margin-top: 4px;">Sistem Informasi Gizi & Menu Digital RS Hermina</p>
+           </div>
+         </div>
+       `,
+    });
+
+    return { success: true };
+
+  } catch (err: any) {
+     console.error("SERVER ACTION ERROR [requestPasswordReset]:", err);
+     return { success: false, error: "Gagal mengirim email reset password ke " + email + ". Periksa koneksi email server." };
+  }
 }
+
 
 export async function resetPasswordWithToken(token: string, newPassword: string) {
-  const account = await db.query.users.findFirst({
-    where: eq(users.resetToken, token)
-  });
-
-  if (!account || !account.resetTokenExpiry || account.resetTokenExpiry < new Date()) {
-     throw new Error("Link reset password tidak valid atau sudah kedaluwarsa.");
+  try {
+     const account = await db.query.users.findFirst({
+       where: eq(users.resetToken, token)
+     });
+ 
+     if (!account || !account.resetTokenExpiry || account.resetTokenExpiry < new Date()) {
+        return { success: false, error: "Link reset password tidak valid atau sudah kedaluwarsa." };
+     }
+ 
+     await db.update(users).set({ password: newPassword, resetToken: null, resetTokenExpiry: null }).where(eq(users.id, account.id));
+     return { success: true };
+  } catch (err: any) {
+     return { success: false, error: "Gagal mengganti password." };
   }
-
-  await db.update(users).set({ password: newPassword, resetToken: null }).where(eq(users.id, account.id));
-  return { success: true };
 }
+
 
 export async function getAllOrders() {
   return await db.query.orders.findMany({
@@ -420,4 +488,82 @@ export async function getMyOrders(userId: number) {
     orderBy: [desc(orders.orderDate)],
   });
 }
+
+// ==== COUPON ACTIONS ====
+
+export async function getCoupons() {
+  return await db.query.coupons.findMany({
+    orderBy: [desc(coupons.createdAt)]
+  });
+}
+
+export async function addCoupon(data: { code: string, discountValue: number, discountType: string, expiryDate?: Date }) {
+  try {
+    const trimmedCode = data.code.trim().toUpperCase();
+    const existing = await db.query.coupons.findFirst({
+      where: eq(coupons.code, trimmedCode)
+    });
+
+    if (existing) return { success: false, error: "Kode kupon sudah ada." };
+
+    await db.insert(coupons).values({
+      id: "CPN-" + generateId(),
+      code: trimmedCode,
+      discountValue: data.discountValue,
+      discountType: data.discountType,
+      expiryDate: data.expiryDate || null,
+      isActive: true,
+      createdAt: new Date()
+    });
+    revalidatePath("/admin/coupons");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: "Gagal menambah kupon." };
+  }
+}
+
+export async function updateCoupon(id: string, data: any) {
+  try {
+    await db.update(coupons).set(data).where(eq(coupons.id, id));
+    revalidatePath("/admin/coupons");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: "Gagal memperbarui kupon." };
+  }
+}
+
+export async function deleteCoupon(id: string) {
+  try {
+    await db.delete(coupons).where(eq(coupons.id, id));
+    revalidatePath("/admin/coupons");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: "Gagal menghapus kupon." };
+  }
+}
+
+
+export async function validateCoupon(code: string) {
+
+  try {
+    const trimmedCode = code.trim().toUpperCase();
+    const coupon = await db.query.coupons.findFirst({
+      where: and(eq(coupons.code, trimmedCode), eq(coupons.isActive, true))
+    });
+
+    if (!coupon) {
+      return { success: false, error: "Kode kupon tidak valid atau sudah tidak aktif." };
+    }
+
+    if (coupon.expiryDate && coupon.expiryDate < new Date()) {
+      return { success: false, error: "Kode kupon sudah kedaluwarsa." };
+    }
+
+    return { success: true, coupon };
+  } catch (err: any) {
+    console.error("Validate Coupon Error:", err);
+    return { success: false, error: "Terjadi kesalahan saat memvalidasi kupon." };
+  }
+}
+
 

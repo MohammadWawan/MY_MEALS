@@ -3,12 +3,17 @@
 import { useState, useEffect } from "react";
 import { ShoppingCart, Utensils, Stethoscope, MapPin, ShieldAlert, Star, Search, Minus, Plus, ShoppingBag, ArrowRight, X, Info } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { getMenus, createOrder } from "@/app/actions";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { getMenus, createOrder, validateCoupon } from "@/app/actions";
 
-export default function OrderPage() {
+import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+import { Suspense } from "react";
+
+function OrderContent() {
   const { user, cart, addToCart, removeFromCart, updateQty, clearCart } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -16,7 +21,8 @@ export default function OrderPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const router = useRouter();
+
+
 
   // Special Doctor Flow Controls (Admins can toggle for testing)
   const [adminOrderType, setAdminOrderType] = useState("customer");
@@ -29,8 +35,10 @@ export default function OrderPage() {
   const [location, setLocation] = useState("");
   const [isAdvance, setIsAdvance] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [discount, setDiscount] = useState(0);
+  const [discountAmount, setDiscountAmount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState("");
+  const [couponData, setCouponData] = useState<any>(null);
+
 
   const floorLocations: Record<string, string[]> = {
     "Lantai 1": ["IGD", "Poliklinik Lantai 1"],
@@ -43,8 +51,13 @@ export default function OrderPage() {
     setMounted(true);
     fetchMenu();
     const interval = setInterval(fetchMenu, 5000);
+
+    const isCheckoutOpen = searchParams.get('checkout') === 'true';
+    if (isCheckoutOpen) setShowCheckout(true);
+
     return () => clearInterval(interval);
   }, []);
+
 
   const fetchMenu = async () => {
     try {
@@ -86,20 +99,51 @@ export default function OrderPage() {
     return sum + (p * item.qty);
   }, 0);
   
-  const cartTotal = subtotal - (subtotal * discount);
+  const cartTotal = Math.max(0, subtotal - discountAmount);
+
   
   const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
 
-  const applyCoupon = () => {
-    const code = couponCode.toUpperCase();
-    if (code === "PROMO2024" || code === "SEMBUH10") {
-      setDiscount(0.1); // 10%
-      setAppliedCoupon(code);
-      toast.success("Kupon berhasil dipasang!");
-    } else {
-      toast.error("Kode kupon tidak valid");
+  const applyCoupon = async () => {
+    if (!couponCode) {
+      setDiscountAmount(0);
+      setAppliedCoupon("");
+      setCouponData(null);
+      toast.info("Kupon telah dibatalkan.");
+      return;
+    }
+    const loadingToast = toast.loading("Validating coupon...");
+    try {
+      const result = await validateCoupon(couponCode);
+      if (!result.success) {
+        toast.error(result.error);
+        setDiscountAmount(0);
+        setAppliedCoupon("");
+        setCouponData(null);
+      } else {
+        const coupon = result.coupon;
+        if (!coupon) return;
+
+        let amount = 0;
+        if (coupon.discountType === 'percentage') {
+          amount = subtotal * (coupon.discountValue / 100);
+        } else {
+          amount = coupon.discountValue;
+        }
+        setDiscountAmount(amount);
+        setAppliedCoupon(coupon.code);
+        setCouponData(coupon);
+        toast.success(`Kupon ${coupon.code} berhasil dipasang!`);
+      }
+    } catch (e) {
+      toast.error("Gagal validasi kupon");
+    } finally {
+      toast.dismiss(loadingToast);
     }
   };
+
+
+
 
   const displayPrice = (price: any) => {
     if (isDoctor) return 0;
@@ -155,8 +199,8 @@ export default function OrderPage() {
        params.set('location', location);
        params.set('roomNumber', roomNumber);
        params.set('orderType', 'customer');
-       if (discount > 0) {
-          params.set('discount', discount.toString());
+       if (discountAmount > 0) {
+          params.set('discountAmount', discountAmount.toString());
           params.set('coupon', appliedCoupon);
        }
        router.push(`/payment?${params.toString()}`);
@@ -459,9 +503,10 @@ export default function OrderPage() {
                       </div>
                       {appliedCoupon && (
                          <p className="text-[10px] font-black text-emerald-500 uppercase flex items-center gap-1">
-                            <ShieldAlert className="w-3 h-3" /> Kupon {appliedCoupon} Aktif (Diskon 10%)
+                            <ShieldAlert className="w-3 h-3" /> Kupon {appliedCoupon} Aktif ({couponData?.discountType === 'percentage' ? `${couponData.discountValue}%` : `Rp ${couponData?.discountValue.toLocaleString()}`})
                          </p>
                       )}
+
                    </div>
                  )}
 
@@ -484,12 +529,13 @@ export default function OrderPage() {
                        <span>Subtotal</span>
                        <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                     </div>
-                    {discount > 0 && (
+                    {discountAmount > 0 && (
                        <div className="flex justify-between items-center text-xs font-black text-emerald-500 uppercase tracking-widest">
                           <span>Potongan Kupon</span>
-                          <span>- Rp {(subtotal * discount).toLocaleString('id-ID')}</span>
+                          <span>- Rp {discountAmount.toLocaleString('id-ID')}</span>
                        </div>
                     )}
+
                     <div className="flex justify-between items-end pt-2">
                        <span className="text-zinc-500 font-black uppercase text-xs tracking-widest">Total Bayar</span>
                        <span className="text-4xl font-black text-indigo-500">Rp {cartTotal.toLocaleString('id-ID')}</span>
@@ -505,4 +551,11 @@ export default function OrderPage() {
       )}
     </div>
   );
+}
+export default function OrderPage() {
+   return (
+      <Suspense fallback={<div>Loading...</div>}>
+         <OrderContent />
+      </Suspense>
+   );
 }

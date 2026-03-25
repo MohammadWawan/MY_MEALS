@@ -16,7 +16,7 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     if (mounted) {
-      const publicPaths = ['/', '/auth/login', '/auth/register', '/auth/reset-password'];
+      const publicPaths = ['/', '/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password'];
       if (!user && !publicPaths.includes(pathname)) {
         router.replace('/auth/login');
       }
@@ -25,7 +25,7 @@ export default function RouteGuard({ children }: { children: React.ReactNode }) 
 
   if (!mounted) return null;
 
-  const publicPaths = ['/', '/auth/login', '/auth/register', '/auth/reset-password'];
+  const publicPaths = ['/', '/auth/login', '/auth/register', '/auth/reset-password', '/auth/forgot-password'];
   if (!user && !publicPaths.includes(pathname)) {
      return (
        <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-500 font-bold p-6 text-center">

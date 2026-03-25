@@ -82,9 +82,12 @@ export const orders = sqliteTable("order", {
   readyByName: text("readyByName"),
   deliveringByName: text("deliveringByName"),
   deliveredByName: text("deliveredByName"),
+  couponCode: text("couponCode"),
+  discountTotal: real("discountTotal").default(0),
 });
 
 export const orderItems = sqliteTable("orderItem", {
+  // ... existing fields
   id: text("id").primaryKey(),
   orderId: text("orderId").notNull().references(() => orders.id),
   productId: text("productId"),
@@ -126,3 +129,14 @@ export const favorites = sqliteTable("favorite", {
   userId: integer("userId", { mode: 'number' }).notNull().references(() => users.id),
   menuId: text("menuId").notNull().references(() => menus.id),
 });
+
+export const coupons = sqliteTable("coupon", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  discountValue: real("discountValue").notNull(),
+  discountType: text("discountType").notNull().default("percentage"), // percentage, fixed
+  isActive: integer("isActive", { mode: 'boolean' }).notNull().default(true),
+  expiryDate: integer("expiryDate", { mode: 'timestamp' }),
+  createdAt: integer("createdAt", { mode: 'timestamp' }).notNull(),
+});
+
