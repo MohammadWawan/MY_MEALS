@@ -43,15 +43,22 @@ export default function RegisterPage() {
     const loadingToast = toast.loading("Sedang mendaftarkan akun...");
 
     try {
-      await registerUser({ name, email, password });
+      const result = await registerUser({ name, email, password });
       toast.dismiss(loadingToast);
+
+      if (!result.success) {
+        toast.error(result.error || "Gagal mendaftarkan akun.");
+        setIsSubmitting(false);
+        return;
+      }
+
       toast.success("Registrasi berhasil! Silakan masuk ke akun Anda.");
       setTimeout(() => {
         router.push("/auth/login");
       }, 1500);
     } catch (err: any) {
       toast.dismiss(loadingToast);
-      toast.error(err.message || "Terjadi kesalahan saat pendaftaran.");
+      toast.error("Terjadi kesalahan koneksi ke server.");
       setIsSubmitting(false);
     }
   };

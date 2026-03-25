@@ -25,8 +25,16 @@ export default function LoginPage() {
     const loadingToast = toast.loading("Sedang masuk...");
 
     try {
-      const dbUser = await loginUser({ email, password });
+      const result = await loginUser({ email, password });
       
+      if (!result.success) {
+        toast.dismiss(loadingToast);
+        toast.error(result.error || "Email atau password salah.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const dbUser = result.user!;
       login({
         id: dbUser.id,
         name: dbUser.name,
@@ -48,7 +56,7 @@ export default function LoginPage() {
 
     } catch (err: any) {
        toast.dismiss(loadingToast);
-       toast.error(err.message || "Email atau password salah.");
+       toast.error("Terjadi kesalahan koneksi ke server.");
        setIsSubmitting(false);
     }
   };

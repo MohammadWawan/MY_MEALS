@@ -214,26 +214,25 @@ export async function deleteOrder(orderId: string) {
 }
 
 export async function registerUser(data: any) {
-  // Check if user exists
-  const existing = await db.query.users.findFirst({
-    where: eq(users.email, data.email)
-  });
-
-  if (existing) {
-    throw new Error("Email ini sudah terdaftar. Silakan gunakan email lain atau masuk ke akun Anda.");
-  }
-
-  let role = data.role || "customer";
-  // Override via keyword if role not explicitly requested (for easy dev)
-  if (!data.role) {
-     if (data.email.includes("admin")) role = "admin";
-     else if (data.email.includes("doctor")) role = "doctor";
-     else if (data.email.includes("catering")) role = "catering";
-     else if (data.email.includes("server") || data.email.includes("waiter")) role = "waiter";
-     else if (data.email.includes("cashier")) role = "cashier";
-  }
-
   try {
+    // Check if user exists
+    const existing = await db.query.users.findFirst({
+      where: eq(users.email, data.email)
+    });
+
+    if (existing) {
+      return { success: false, error: "Email ini sudah terdaftar." };
+    }
+
+    let role = data.role || "customer";
+    if (!data.role) {
+       if (data.email.includes("admin")) role = "admin";
+       else if (data.email.includes("doctor")) role = "doctor";
+       else if (data.email.includes("catering")) role = "catering";
+       else if (data.email.includes("server") || data.email.includes("waiter")) role = "waiter";
+       else if (data.email.includes("cashier")) role = "cashier";
+    }
+
     await db.insert(users).values({
       name: data.name,
       email: data.email,
@@ -245,26 +244,37 @@ export async function registerUser(data: any) {
     });
     return { success: true };
   } catch (err) {
-    throw new Error("Gagal mendaftarkan akun. Silakan coba beberapa saat lagi.");
+    return { success: false, error: "Gagal mendaftarkan akun." };
   }
 }
 
 export async function loginUser(data: any) {
-  const account = await db.query.users.findFirst({
-     where: eq(users.email, data.email)
-  });
+  try {
+    const account = await db.query.users.findFirst({
+       where: eq(users.email, data.email)
+    });
 
-  if (!account || account.password !== data.password) {
-     throw new Error("Email atau password yang Anda masukkan salah.");
+    if (!account) {
+       return { success: false, error: "Email belum terdaftar dalam sistem." };
+    }
+
+    if (account.password !== data.password) {
+       return { success: false, error: "Password yang Anda masukkan salah." };
+    }
+
+    return {
+      success: true,
+      user: {
+        id: account.id,
+        name: account.name,
+        email: account.email,
+        role: account.role as any,
+        image: account.image
+      }
+    };
+  } catch (err: any) {
+    return { success: false, error: "Terjadi kesalahan sistem saat masuk." };
   }
-
-  return {
-    id: account.id,
-    name: account.name,
-    email: account.email,
-    role: account.role as any,
-    image: account.image
-  };
 }
 
 export async function requestPasswordReset(email: string) {
