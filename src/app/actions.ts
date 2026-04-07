@@ -611,14 +611,14 @@ export async function getMenuReviews(menuId: string) {
     });
 
     return results
-      .filter(item => item.order.submittedRating !== null && item.order.submittedRating !== undefined)
+      .filter(item => item.order && item.order.submittedRating !== null && item.order.submittedRating !== undefined)
       .map(item => ({
         id: item.orderId,
-        userName: item.order.user.name,
-        userImage: item.order.user.image,
+        userName: item.order.user?.name || "Customer",
+        userImage: item.order.user?.image || null,
         rating: item.order.submittedRating,
         reviewText: item.order.reviewText,
-        date: item.order.updatedAt || item.order.orderDate
+        date: item.order.updatedAt || item.order.orderDate || new Date()
       }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   } catch (err) {

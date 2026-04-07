@@ -20,8 +20,11 @@ export default function UlasanPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     if (!id) return;
     getMenuReviews(id).then(data => {
-      setAllReviews(data);
-      setVisibleReviews(data.slice(0, REVIEWS_PER_PAGE));
+      setAllReviews(data || []);
+      setVisibleReviews((data || []).slice(0, REVIEWS_PER_PAGE));
+      setLoading(false);
+    }).catch(err => {
+      console.error("Failed to load reviews:", err);
       setLoading(false);
     });
   }, [id]);
