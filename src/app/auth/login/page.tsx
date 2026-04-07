@@ -29,8 +29,7 @@ export default function LoginPage() {
       
       if (!result.success) {
         toast.dismiss(loadingToast);
-        toast.error(result.error || "Email atau password salah.");
-        setIsSubmitting(false);
+        toast.error(result.error || "Email atau kata sandi yang Anda masukkan salah.");
         return;
       }
 
@@ -41,7 +40,6 @@ export default function LoginPage() {
         email: dbUser.email,
         role: dbUser.role,
         image: dbUser.image || undefined,
-
       }, rememberMe);
 
       toast.dismiss(loadingToast);
@@ -56,7 +54,9 @@ export default function LoginPage() {
 
     } catch (err: any) {
        toast.dismiss(loadingToast);
-       toast.error("Terjadi kesalahan koneksi ke server.");
+       console.error("Login Error:", err);
+       toast.error("Gagal terhubung ke server. Silakan coba kembali beberapa saat lagi.");
+    } finally {
        setIsSubmitting(false);
     }
   };

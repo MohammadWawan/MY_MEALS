@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { createOrder, validateCoupon } from "@/app/actions";
+import { createOrder, validateCoupon, updateOrderStatus } from "@/app/actions";
+import { QrCode, CreditCard, Banknote } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -19,6 +20,9 @@ export default function PaymentPage() {
   const [couponInput, setCouponInput] = useState("");
   const [couponData, setCouponData] = useState<any>(null);
   const [discountTotal, setDiscountTotal] = useState(0);
+
+  // Cash payment states
+  const [cashOrderId, setCashOrderId] = useState<string | null>(null);
 
   const calculateDiscountValue = (coupon: any) => {
     if (coupon.discountType === 'percentage') {
@@ -85,7 +89,8 @@ export default function PaymentPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || isSubmitting) return;
+    if (method !== 'tunai' && !file) return;
+    if (isSubmitting) return;
     
     if (!user) {
       toast.error("Sesi Anda telah berakhir. Silakan login kembali.");
@@ -97,13 +102,15 @@ export default function PaymentPage() {
     const loadingToast = toast.loading("Sedang mengirim pesanan...");
 
     try {
-      // Convert file to base64 using a Promise for proper async/await
-      const base64String = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error("Gagal membaca file"));
-        reader.readAsDataURL(file);
-      });
+      let base64String = "";
+      if (file) {
+        base64String = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Gagal membaca file"));
+          reader.readAsDataURL(file);
+        });
+      }
 
       // Determine if it's advance order from URL query param
       const searchParams = new URLSearchParams(window.location.search);
@@ -137,23 +144,29 @@ export default function PaymentPage() {
             price: c.price,
             quantity: c.qty
          }))
-
       };
 
       const result = await createOrder(orderData);
       
-      if (!result.success) {
-        throw new Error(result.error);
+      if (!result.success || !result.orderId) {
+        throw new Error(result.error || "Order ID missing");
       }
       
       toast.dismiss(loadingToast);
-      toast.success("Pesanan Terkirim! \nBukti pembayaran Anda sedang divalidasi oleh kasir.", {
-         duration: 5000
-      });
-      
-      setShowPopup(false);
-      clearCart();
-      router.replace("/tracking");
+
+      if (method === 'tunai') {
+         clearCart();
+         toast.success("Pesanan Diterima! Silakan lihat kode pembayaran.");
+         setIsSubmitting(false);
+         router.push(`/payment/qr/${result.orderId}`);
+      } else {
+         toast.success("Pesanan Terkirim! \nBukti pembayaran Anda sedang divalidasi oleh kasir.", {
+            duration: 5000
+         });
+         setShowPopup(false);
+         clearCart();
+         router.replace("/tracking");
+      }
     } catch (err: any) {
       toast.dismiss(loadingToast);
       console.error("Payment Error:", err);
@@ -223,20 +236,27 @@ export default function PaymentPage() {
         </div>
 
         <h3 className="font-bold text-center mb-4 text-zinc-600 dark:text-zinc-400">Select Payment Method</h3>
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-3 gap-4 mb-4">
           <button 
             onClick={() => {setMethod('qris'); setShowPopup(true);}} 
             className="flex flex-col items-center justify-center py-6 border-2 border-slate-200 hover:border-blue-500 rounded-2xl transition-all cursor-pointer dark:border-zinc-700 dark:hover:border-blue-400 group bg-slate-50 dark:bg-zinc-800"
           >
-            <span className="text-xl font-bold mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">QRIS</span>
-            <span className="text-xs text-slate-500">Scan & Pay</span>
+            <span className="text-lg font-bold mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400">QRIS</span>
+            <span className="text-[10px] text-slate-500">Scan & Pay</span>
           </button>
           <button 
             onClick={() => {setMethod('transfer'); setShowPopup(true);}} 
             className="flex flex-col items-center justify-center py-6 border-2 border-slate-200 hover:border-indigo-500 rounded-2xl transition-all cursor-pointer dark:border-zinc-700 dark:hover:border-indigo-400 group bg-slate-50 dark:bg-zinc-800"
           >
-            <span className="text-xl font-bold mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">Transfer</span>
-            <span className="text-xs text-slate-500">Bank Transfer</span>
+            <span className="text-lg font-bold mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">TF BANK</span>
+            <span className="text-[10px] text-slate-500">Bank Transfer</span>
+          </button>
+          <button 
+            onClick={() => {setMethod('tunai'); setShowPopup(true);}} 
+            className="flex flex-col items-center justify-center py-6 border-2 border-slate-200 hover:border-emerald-500 rounded-2xl transition-all cursor-pointer dark:border-zinc-700 dark:hover:border-emerald-400 group bg-slate-50 dark:bg-zinc-800"
+          >
+            <span className="text-lg font-bold mb-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400">TUNAI</span>
+            <span className="text-[10px] text-slate-500">Cash di Kasir</span>
           </button>
         </div>
       </div>
@@ -245,76 +265,87 @@ export default function PaymentPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-6">
           <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-2xl w-full max-w-md relative animate-in fade-in zoom-in duration-300 border border-zinc-200 dark:border-zinc-700">
             <button onClick={() => setShowPopup(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold p-2 text-xl">&times;</button>
-            <h2 className="text-2xl font-bold mb-6 text-center">
-              {method === 'qris' ? 'Scan QRIS to Pay' : 'Bank Transfer Details'}
+            <h2 className="text-2xl font-bold mb-6 text-center mt-4">
+              {method === 'qris' ? 'Scan QRIS to Pay' : method === 'transfer' ? 'Bank Transfer Details' : 'Pembayaran Tunai di Kasir'}
             </h2>
             
-            <div className="flex justify-center mb-6">
-              {method === 'qris' ? (
-                <div className="w-48 h-48 bg-slate-200 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-500 border-4 border-white shadow-xl">
-                    <span className="font-mono text-sm">[ QR CODE IMAGE ]</span>
+            <>
+              <div className="flex justify-center mb-6">
+                  {method === 'qris' ? (
+                    <div className="w-48 h-48 bg-slate-200 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-500 border-4 border-white shadow-xl">
+                        <span className="font-mono text-sm">[ QR CODE IMAGE ]</span>
+                    </div>
+                  ) : method === 'transfer' ? (
+                    <div className="text-center p-6 bg-slate-100 dark:bg-zinc-800/50 rounded-xl w-full border-2 border-indigo-100 dark:border-indigo-900/30">
+                      <div className="flex items-center justify-center gap-2 mb-3">
+                         <div className="w-10 h-6 bg-blue-700 rounded flex items-center justify-center text-[8px] font-black text-white">BCA</div>
+                         <span className="text-xs font-bold text-slate-500 uppercase">Bank Central Asia</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-widest font-black">Nomor Rekening</p>
+                      <div className="flex items-center justify-center gap-3">
+                         <p className="text-3xl font-mono font-black tracking-wider text-indigo-600 dark:text-indigo-400">8891 0293 481</p>
+                         <button 
+                           onClick={(e) => {
+                              e.preventDefault();
+                              navigator.clipboard.writeText("88910293481");
+                              toast.success("Nomor rekening disalin!");
+                           }}
+                           className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg hover:scale-110 active:scale-95 transition-all"
+                         >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 002-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
+                         </button>
+                      </div>
+                      <p className="text-[10px] font-black mt-2 text-zinc-400">A/N HOSPITAL POS PROVIDER</p>
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-900/30">
+                       <Banknote className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                       <p className="text-xs text-amber-700 dark:text-amber-500 font-medium">Pembayaran Tunai dilakukan dengan menyerahkan uang tunai langsung ke kasir rumah sakit. Setelah memilih opsi ini, Anda akan mendapatkan QR Code untuk ditunjukkan kepada kasir.</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center p-6 bg-slate-100 dark:bg-zinc-800/50 rounded-xl w-full border-2 border-indigo-100 dark:border-indigo-900/30">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                     <div className="w-10 h-6 bg-blue-700 rounded flex items-center justify-center text-[8px] font-black text-white">BCA</div>
-                     <span className="text-xs font-bold text-slate-500 uppercase">Bank Central Asia</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mb-1 uppercase tracking-widest font-black">Nomor Rekening</p>
-                  <div className="flex items-center justify-center gap-3">
-                     <p className="text-3xl font-mono font-black tracking-wider text-indigo-600 dark:text-indigo-400">8891 0293 481</p>
-                     <button 
-                       onClick={(e) => {
-                          e.preventDefault();
-                          navigator.clipboard.writeText("88910293481");
-                          toast.success("Nomor rekening disalin!");
-                       }}
-                       className="p-2 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg hover:scale-110 active:scale-95 transition-all"
-                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 002-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>
-                     </button>
-                  </div>
-                  <p className="text-[10px] font-black mt-2 text-zinc-400">A/N HOSPITAL POS PROVIDER</p>
-                </div>
-              )}
-            </div>
 
-            <form onSubmit={handleUpload} className="space-y-4 border-t border-slate-200 dark:border-zinc-800 pt-6">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Upload Transaction Receipt</label>
-              <input 
-                type="file" 
-                accept=".jpg,.jpeg,.png"
-                required 
-                onChange={(e) => {
-                  const selectedFile = e.target.files?.[0];
-                  if (selectedFile && selectedFile.size > 1 * 1024 * 1024) {
-                    toast.error("File terlalu besar. Maksimal ukuran file adalah 1MB");
-                    e.target.value = ""; // Reset input
-                    e.target.setCustomValidity("Ukuran file melebihi 1MB. Silakan pilih file yang lebih kecil.");
-                    setFile(null);
-                    return;
-                  }
-                  e.target.setCustomValidity("");
-                  setFile(selectedFile || null);
-                }}
-                onInvalid={(e) => {
-                   const target = e.target as HTMLInputElement;
-                   if (!target.value && !target.validationMessage.includes("1MB")) {
-                      target.setCustomValidity("Harap unggah bukti pembayaran");
-                   }
-                }}
-                onInput={(e) => {
-                   const target = e.target as HTMLInputElement;
-                   if (target.value && !target.validationMessage.includes("1MB")) {
-                      target.setCustomValidity("");
-                   }
-                }}
-                className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-300 cursor-pointer"
-              />
-              <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl mt-4 active:scale-95 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed">
-                {isSubmitting ? "Processing..." : "Submit Receipt"}
-              </button>
-            </form>
+                <form onSubmit={handleUpload} className="space-y-4 border-t border-slate-200 dark:border-zinc-800 pt-6">
+                  {method !== 'tunai' && (
+                    <>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Upload Transaction Receipt</label>
+                      <input 
+                        type="file" 
+                        accept=".jpg,.jpeg,.png"
+                        required={method !== 'tunai'}
+                        onChange={(e) => {
+                          const selectedFile = e.target.files?.[0];
+                          if (selectedFile && selectedFile.size > 1 * 1024 * 1024) {
+                            toast.error("File terlalu besar. Maksimal ukuran file adalah 1MB");
+                            e.target.value = ""; // Reset input
+                            e.target.setCustomValidity("Ukuran file melebihi 1MB. Silakan pilih file yang lebih kecil.");
+                            setFile(null);
+                            return;
+                          }
+                          e.target.setCustomValidity("");
+                          setFile(selectedFile || null);
+                        }}
+                        onInvalid={(e) => {
+                           const target = e.target as HTMLInputElement;
+                           if (!target.value && !target.validationMessage.includes("1MB")) {
+                              target.setCustomValidity("Harap unggah bukti pembayaran");
+                           }
+                        }}
+                        onInput={(e) => {
+                           const target = e.target as HTMLInputElement;
+                           if (target.value && !target.validationMessage.includes("1MB")) {
+                              target.setCustomValidity("");
+                           }
+                        }}
+                        className="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900/30 dark:file:text-indigo-300 cursor-pointer"
+                      />
+                    </>
+                  )}
+                  <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl mt-4 active:scale-95 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isSubmitting ? "Processing..." : method === 'tunai' ? "Lanjut Transaksi" : "Submit Receipt"}
+                  </button>
+                </form>
+            </>
           </div>
         </div>
       )}

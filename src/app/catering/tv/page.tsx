@@ -11,22 +11,29 @@ export default function TVMonitor() {
 
   const playNotification = useCallback(() => {
      try {
-       const msg = new SpeechSynthesisUtterance("Perhatian! Pesanan baru telah masuk. Harap segera disiapkan!");
-       msg.lang = 'id-ID';
-       msg.pitch = 1.1; // Slightly higher for more "female" resonance if voice match is generic
-       msg.rate = 1.0;
-       
-       const voices = window.speechSynthesis.getVoices();
-       // Prioritize Indonesian Female voices (Microsoft Gadis, Google Bahasa Indonesia, etc)
-       const femaleIndo = voices.find(v => v.lang.startsWith('id') && (v.name.toLowerCase().includes('female') || v.name.includes('Gadis') || v.name.includes('Google'))) 
-                       || voices.find(v => v.lang.startsWith('id'));
-       
-       if (femaleIndo) {
-          msg.voice = femaleIndo;
-       }
-       window.speechSynthesis.speak(msg);
+       // 1. Coba putar file MP3 kustom dari folder public
+       const audio = new Audio("/panggilan.mp3");
+       audio.play().catch(e => {
+          // 2. Jika file MP3 tidak ditemukan atau diblokir browser, 
+          // gunakan Fallback ke Web Speech API (Gadis Indonesia)
+          console.log("MP3 fallback to TTS Voice...");
+          const msg = new SpeechSynthesisUtterance("PERHATIAN ADA PESANAN BARU. HARAP DISIAPKAN.");
+          msg.lang = 'id-ID';
+          msg.pitch = 1.1; 
+          msg.rate = 1.0;
+          
+          const voices = window.speechSynthesis.getVoices();
+          // Cari suara perempuan Indonesia (Gadis, Google, etc)
+          const femaleIndo = voices.find(v => v.lang.startsWith('id') && (v.name.toLowerCase().includes('female') || v.name.includes('Gadis') || v.name.includes('Google'))) 
+                          || voices.find(v => v.lang.startsWith('id'));
+          
+          if (femaleIndo) {
+             msg.voice = femaleIndo;
+          }
+          window.speechSynthesis.speak(msg);
+       });
      } catch (e) {
-       console.error("Speech error", e);
+       console.error("Audio playback error", e);
      }
   }, []);
 

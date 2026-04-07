@@ -84,6 +84,9 @@ export const orders = sqliteTable("order", {
   deliveredByName: text("deliveredByName"),
   couponCode: text("couponCode"),
   discountTotal: real("discountTotal").default(0),
+  isRefunded: integer("isRefunded", { mode: 'boolean' }).default(false),
+  refundedAt: integer("refundedAt", { mode: 'timestamp' }),
+  refundMethod: text("refundMethod"), // cash, etc.
 });
 
 export const orderItems = sqliteTable("orderItem", {

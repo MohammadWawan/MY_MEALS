@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { CheckCircle, Clock, ChefHat, Truck, MapPin, Star, RefreshCw, ChevronRight, Search, Calendar, History, Package } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
-import { getMyOrders, rateMenu } from "@/app/actions";
+import { getMyOrders, rateMenu, updateOrderStatus } from "@/app/actions";
 import { toast } from "sonner";
 
 export default function TrackingPage() {
@@ -23,6 +23,13 @@ export default function TrackingPage() {
   const [reviewText, setReviewText] = useState("");
   const [editingRating, setEditingRating] = useState(false);
   
+  // Cancelling states
+  const [showCancelPopup, setShowCancelPopup] = useState(false);
+  const [refundBank, setRefundBank] = useState("");
+  const [refundAccount, setRefundAccount] = useState("");
+  const [refundName, setRefundName] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
+
   const prevOrdersRef = useRef<string>("");
 
   const fetchOrders = useCallback(async () => {
@@ -108,6 +115,44 @@ export default function TrackingPage() {
     }
   };
 
+  const handleCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrder) return;
+    setIsCancelling(true);
+    try {
+      let refundDetails = undefined;
+      // if method is transfer or qris, they fill the form
+      if (currentOrder.paymentMethod !== 'tunai' && currentOrder.paymentMethod !== 'doctor_quota') {
+          if (!refundBank || !refundAccount || !refundName) {
+              toast.error("Harap lengkapi data rekening pengembalian dana.");
+              setIsCancelling(false);
+              return;
+          }
+          refundDetails = `${refundBank} - ${refundAccount} a/n ${refundName}`;
+      } else {
+          refundDetails = "Refund Tunai - Kasir";
+      }
+
+      await updateOrderStatus(
+          currentOrder.id, 
+          "cancelled", 
+          undefined, 
+          undefined, 
+          "Dibatalkan oleh Pelanggan", 
+          undefined, 
+          true, 
+          currentOrder.paymentMethod === 'tunai' ? 'cash' : refundDetails
+      );
+      toast.success("Pesanan berhasil dibatalkan.");
+      setShowCancelPopup(false);
+      fetchOrders();
+    } catch(err) {
+      toast.error("Gagal membatalkan pesanan.");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
        <RefreshCw className="w-10 h-10 text-indigo-500 animate-spin" />
@@ -183,6 +228,17 @@ export default function TrackingPage() {
                          })}
                       </div>
                    )}
+
+                    {currentOrder.status !== 'cancelled' && currentOrder.status !== 'delivered' && currentOrder.status !== 'pending-approval' && (
+                       <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                           <button 
+                              onClick={() => setShowCancelPopup(true)} 
+                              className="w-full py-4 border-2 border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-500 font-bold rounded-2xl hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors bg-white dark:bg-zinc-900"
+                           >
+                              Batalkan Pesanan & Refund Uang
+                           </button>
+                       </div>
+                    )}
 
                    {/* Point 2 Fix: Rating form directly below milestone board */}
                    {(currentOrder.status === 'delivered' || currentOrder.submittedRating) && (
@@ -267,6 +323,46 @@ export default function TrackingPage() {
            )}
         </div>
       </div>
+
+      {showCancelPopup && currentOrder && (
+         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-6">
+            <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95 duration-200">
+               <h3 className="text-2xl font-black mb-4 text-center">Batal Pesanan</h3>
+               
+               <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl text-amber-700 dark:text-amber-500 text-xs font-bold leading-relaxed">
+                  {currentOrder.paymentMethod === 'tunai' 
+                     ? "Pesanan yang dibatalkan akan dikembalikan uangnya. Silakan tunjukkan ID Pesanan Anda ke Kasir Rumah Sakit untuk mengambil pengembalian uang tunai."
+                     : "Pesanan Anda akan dibatalkan. Silakan masukkan detail rekening Anda untuk proses pengembalian dana (Refund)."}
+               </div>
+
+               <form onSubmit={handleCancel} className="space-y-4">
+                  {currentOrder.paymentMethod !== 'tunai' && currentOrder.paymentMethod !== 'doctor_quota' && (
+                     <>
+                        <div>
+                          <label className="block text-[10px] uppercase font-black text-zinc-500 mb-2 tracking-widest">Nama Bank</label>
+                          <input required value={refundBank} onChange={e => setRefundBank(e.target.value)} type="text" placeholder="BCA / Mandiri / BNI..." className="w-full p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950 text-sm font-bold focus:ring-2 focus:ring-rose-500 outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-black text-zinc-500 mb-2 tracking-widest">Nomor Rekening</label>
+                          <input required value={refundAccount} onChange={e => setRefundAccount(e.target.value)} type="text" placeholder="1234567890" className="w-full p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950 text-sm font-bold focus:ring-2 focus:ring-rose-500 outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-black text-zinc-500 mb-2 tracking-widest">Nama Pemilik Rekening</label>
+                          <input required value={refundName} onChange={e => setRefundName(e.target.value)} type="text" placeholder="Nama sesuai buku tabungan" className="w-full p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl bg-zinc-50 dark:bg-zinc-950 text-sm font-bold focus:ring-2 focus:ring-rose-500 outline-none" />
+                        </div>
+                     </>
+                  )}
+                  
+                  <div className="flex gap-3 pt-4">
+                     <button type="button" onClick={() => setShowCancelPopup(false)} className="flex-1 py-4 font-bold rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">Kembali</button>
+                     <button type="submit" disabled={isCancelling} className="flex-1 py-4 font-bold rounded-xl bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-lg shadow-rose-600/30 disabled:opacity-50">
+                        {isCancelling ? 'Memproses...' : 'Konfirmasi Batal'}
+                     </button>
+                  </div>
+               </form>
+            </div>
+         </div>
+      )}
     </div>
   );
 }

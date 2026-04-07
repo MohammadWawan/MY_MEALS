@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Printer, XCircle, Search, Calendar, Banknote, User, CheckCircle, Clock, MapPin, Hash, ShieldCheck, Heart, Trash2, CreditCard } from "lucide-react";
+import { Printer, XCircle, Search, Calendar, Banknote, User, CheckCircle, Clock, MapPin, Hash, ShieldCheck, Heart, Trash2, CreditCard, ScanLine, QrCode } from "lucide-react";
 import { getPendingOrders, updateOrderStatus, deleteOrder } from "@/app/actions";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
@@ -16,6 +16,8 @@ export default function CashierDashboard() {
   const [dateFilter, setDateFilter] = useState("");
   const [mounted, setMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannedId, setScannedId] = useState("");
   const lastOrderCountRef = useRef(0);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { user } = useAuth();
@@ -66,7 +68,8 @@ export default function CashierDashboard() {
   }, [loadOrders]);
 
   useEffect(() => {
-    const pendingCount = orders.filter(o => o.status === 'received').length;
+    // Exclude 'tunai' from pending notifications since they must be scanned first
+    const pendingCount = orders.filter(o => o.status === 'received' && o.paymentMethod !== 'tunai' && o.paymentMethod !== 'cash').length;
     if (pendingCount > lastOrderCountRef.current && audioEnabled) {
        const audio = new Audio('/tingtung.mp3');
        audio.play().catch(e => {
@@ -107,23 +110,28 @@ export default function CashierDashboard() {
     }
   };
 
-  const handleCancelOrder = async (id: string) => {
-    const confirmCancel = confirm("Apakah Anda yakin ingin membatalkan pesanan ini?");
-    if (confirmCancel) {
-      if (isSubmitting) return;
-      setIsSubmitting(true);
-      const loadingToast = toast.loading("Membatalkan pesanan...");
-      try {
-        await updateOrderStatus(id, "cancelled", false, undefined, undefined, user?.name);
-        setOrders(prev => prev.map(o => o.id === id ? { ...o, status: "cancelled", isPaid: false } : o));
-        toast.dismiss(loadingToast);
-        toast.warning("Pesanan berhasil dibatalkan.");
-      } catch (e) {
-        toast.dismiss(loadingToast);
-        toast.error("Gagal membatalkan pesanan.");
-      } finally {
-        setIsSubmitting(false);
-      }
+  const handleCancelOrder = async (order: any) => {
+    const reason = prompt("Masukkan alasan pembatalan:");
+    if (reason === null) return; // User cancelled prompt
+
+    let refundCash = false;
+    if (order.isPaid) {
+      refundCash = confirm("Pesanan ini sudah dibayar. Apakah Anda telah mengembalikan uang secara TUNAI kepada customer?");
+    }
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Membatalkan pesanan...");
+    try {
+      await updateOrderStatus(order.id, "cancelled", false, undefined, reason, user?.name, refundCash, refundCash ? "cash" : undefined);
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "cancelled", isPaid: false, isRefunded: refundCash } : o));
+      toast.dismiss(loadingToast);
+      toast.warning(refundCash ? "Pesanan dibatalkan & uang dikembalikan secara tunai." : "Pesanan berhasil dibatalkan.");
+    } catch (e) {
+      toast.dismiss(loadingToast);
+      toast.error("Gagal membatalkan pesanan.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -152,6 +160,11 @@ export default function CashierDashboard() {
   };
 
   const filteredOrders = orders.filter(o => {
+    // Hide pending cash (tunai) orders from the general grid so they have to use the Scanner
+    if ((o.paymentMethod === 'tunai' || o.paymentMethod === 'cash') && o.status === 'received') {
+      return false;
+    }
+
     const matchesSearch = searchQuery === "" || 
        o.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
        (o.mrn && o.mrn.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -202,10 +215,16 @@ export default function CashierDashboard() {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full md:w-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full md:w-auto mt-6 md:mt-0">
+             <button onClick={() => router.push("/cashier/refunds")} className="px-6 py-4 bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-900 hover:bg-rose-100 text-rose-600 font-black rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all w-full md:w-auto whitespace-nowrap text-sm">
+                 Approve Refund
+             </button>
+             <button onClick={() => { setShowScanner(true); setScannedId(""); }} className="px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all text-sm w-full md:w-auto whitespace-nowrap">
+                <ScanLine className="w-5 h-5" /> SCAN QR
+             </button>
              <div className="relative">
                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-               <input type="text" placeholder="ID / MRN / Nama..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" />
+               <input type="text" placeholder="ID / MRN..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" />
              </div>
              <div className="relative">
                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -240,6 +259,7 @@ export default function CashierDashboard() {
                       </span>
                       {order.isPaid && <span className="bg-blue-500 text-white px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full">LUNAS</span>}
                       {order.status === 'cancelled' && <span className="bg-rose-500 text-white px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full">BATAL</span>}
+                       {order.isRefunded && <span className="bg-emerald-500 text-white px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full">REFUND TUNAI</span>}
                    </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -302,7 +322,7 @@ export default function CashierDashboard() {
              <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800 flex gap-4">
                 {order.status !== 'cancelled' && !order.isPaid ? (
                   <>
-                    <button disabled={isSubmitting} onClick={() => handleCancelOrder(order.id)} className="p-5 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl hover:bg-rose-100 transition-all disabled:opacity-50" title="Batalkan Pesanan">
+                    <button disabled={isSubmitting} onClick={() => handleCancelOrder(order)} className="p-5 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl hover:bg-rose-100 transition-all disabled:opacity-50" title="Batalkan Pesanan">
                        <XCircle className="w-6 h-6" />
                     </button>
                     <button disabled={isSubmitting} onClick={() => validatePayment(order.id)} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[1.5rem] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50">
@@ -318,8 +338,15 @@ export default function CashierDashboard() {
                )}
                
                {order.status === 'cancelled' && (
-                  <div className="w-full py-4 text-center text-rose-500 font-bold text-xs uppercase italic bg-rose-50 dark:bg-rose-900/10 rounded-2xl">
-                     Pesanan dibatalkan
+                  <div className="w-full flex flex-col gap-2">
+                     <div className="w-full py-4 text-center text-rose-500 font-bold text-xs uppercase italic bg-rose-50 dark:bg-rose-900/10 rounded-2xl">
+                        Pesanan dibatalkan
+                     </div>
+                     {order.cancelReason && (
+                       <div className="px-4 text-[10px] text-zinc-500 dark:text-zinc-400 italic">
+                         Alasan: {order.cancelReason}
+                       </div>
+                     )}
                   </div>
                )}
              </div>
@@ -338,6 +365,81 @@ export default function CashierDashboard() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-8 md:p-12 print:hidden backdrop-blur-2xl" onClick={() => setFullImage(null)}>
             <button className="absolute top-8 right-8 w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-rose-500 text-white rounded-full transition-all" onClick={() => setFullImage(null)}><XCircle /></button>
             <img src={fullImage} className="max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-800" alt="Full Receipt" />
+        </div>
+      )}
+
+      {/* QR Scanner Modal */}
+      {showScanner && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4">
+           <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col relative">
+              <button className="absolute top-6 right-6 p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => setShowScanner(false)}>
+                 <XCircle className="w-6 h-6 text-zinc-500" />
+              </button>
+              <h2 className="text-3xl font-black mb-2 flex items-center gap-3"><ScanLine className="text-emerald-500 w-8 h-8" /> Scanner QR Code</h2>
+              <p className="text-zinc-500 text-sm mb-8 font-medium">Gunakan alat Scanner Barcode / QR Code, atau ketik langsung Order ID pasien ke kolom di bawah.</p>
+              
+              {!orders.find(o => o.id === scannedId.trim() && !['cancelled', 'delivered'].includes(o.status)) ? (
+                <div className="flex flex-col items-center">
+                   <div className="w-full relative mb-10">
+                      <ScanLine className="absolute left-6 top-1/2 -translate-y-1/2 w-8 h-8 text-zinc-300" />
+                      <input 
+                         autoFocus
+                         type="text" 
+                         value={scannedId} 
+                         onChange={(e) => setScannedId(e.target.value)} 
+                         placeholder="Scan QR Code here..." 
+                         className="w-full text-2xl font-black bg-zinc-50 dark:bg-zinc-950 border-4 border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] py-8 pl-20 pr-8 focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all uppercase tracking-widest shadow-inner text-center"
+                      />
+                   </div>
+                   <div className="w-56 h-56 border-4 border-dashed border-zinc-200 dark:border-zinc-800 rounded-[3rem] flex items-center justify-center opacity-50 relative overflow-hidden bg-zinc-50 dark:bg-zinc-950/50">
+                      <div className="absolute top-0 w-full h-1 bg-emerald-500 shadow-[0_0_30px_10px_#10b981] animate-[scan_2s_ease-in-out_infinite]"></div>
+                      <QrCode className="w-24 h-24 text-zinc-300" />
+                   </div>
+                </div>
+              ) : (
+                <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+                   {(() => {
+                      const foundOrder = orders.find(o => o.id === scannedId.trim() && !['cancelled', 'delivered'].includes(o.status));
+                      if (foundOrder) return (
+                         <div className="bg-emerald-50 dark:bg-emerald-900/10 border-4 border-emerald-200 dark:border-emerald-900/50 p-8 rounded-[3rem] shadow-xl">
+                            <div className="flex justify-between items-start mb-8 pb-8 border-b-2 border-emerald-100 dark:border-emerald-900">
+                               <div>
+                                  <p className="text-xs font-black uppercase text-emerald-600 tracking-widest mb-1 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Pesanan Terdeteksi</p>
+                                  <p className="text-3xl font-black text-emerald-950 dark:text-emerald-50 leading-tight">{foundOrder.id}</p>
+                                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400 mt-1 flex items-center gap-2"><User className="w-4 h-4" /> {foundOrder.customerName}</p>
+                               </div>
+                               <div className="text-right">
+                                  <p className="text-[10px] font-black uppercase text-emerald-600/60 tracking-widest mb-1">Total Tunai</p>
+                                  <p className="text-3xl font-black text-emerald-600">{formatPrice(foundOrder.amount)}</p>
+                               </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                               <button onClick={() => {
+                                   handleCancelOrder(foundOrder);
+                                   setShowScanner(false);
+                                   setScannedId("");
+                               }} className="py-6 border-4 border-rose-200 dark:border-rose-900/50 text-rose-600 font-black rounded-[2rem] hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all uppercase tracking-widest text-sm flex justify-center items-center gap-2 bg-white dark:bg-zinc-900">
+                                  <XCircle className="w-5 h-5" /> Cancel Order
+                               </button>
+                               <button 
+                                 disabled={isSubmitting || foundOrder.isPaid} 
+                                 onClick={() => {
+                                   validatePayment(foundOrder.id);
+                                   setShowScanner(false);
+                                   setScannedId("");
+                                 }} 
+                                 className="py-6 bg-emerald-600 text-white font-black rounded-[2rem] shadow-xl shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-50 flex justify-center items-center gap-2"
+                               >
+                                  <CheckCircle className="w-5 h-5" /> Validasi Pembayaran
+                               </button>
+                            </div>
+                         </div>
+                      );
+                   })()}
+                </div>
+              )}
+           </div>
         </div>
       )}
 

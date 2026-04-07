@@ -26,7 +26,13 @@ export default function ReportsPage() {
         return true;
     });
 
-    const income = filteredOrders.filter(o => o.isPaid).reduce((acc, curr) => acc + curr.totalAmount, 0);
+    const income = filteredOrders
+        .filter(o => o.isPaid && !o.isRefunded)
+        .reduce((acc, curr) => acc + curr.totalAmount, 0);
+
+    const totalRefunds = filteredOrders
+        .filter(o => o.isRefunded)
+        .reduce((acc, curr) => acc + curr.totalAmount, 0);
 
     const formatTime = (isoString: string | null | undefined) => {
         if (!isoString) return "-";
@@ -34,7 +40,7 @@ export default function ReportsPage() {
     }
 
     const handleExportCSV = () => {
-        const headers = ["ID", "Customer Name", "Status", "Total Amount", "Ordered Date", "Last Update Date", "Order Time", "Validated Time", "Preparing Time", "Ready Time", "Delivering Time", "Delivered Time", "Paid"];
+        const headers = ["ID", "Customer Name", "Status", "Total Amount", "Ordered Date", "Last Update Date", "Order Time", "Validated Time", "Preparing Time", "Ready Time", "Delivering Time", "Delivered Time", "Paid", "Refunded", "Refund Details", "Cancel Reason"];
         const rows = filteredOrders.map(o => [
             o.id, 
             o.user?.name || "-",
@@ -48,7 +54,10 @@ export default function ReportsPage() {
             `${formatTime(o.readyAt)} ${o.readyByName ? '('+o.readyByName+')' : ''}`,
             `${formatTime(o.deliveringAt)} ${o.deliveringByName ? '('+o.deliveringByName+')' : ''}`,
             `${formatTime(o.deliveredAt)} ${o.deliveredByName ? '('+o.deliveredByName+')' : ''}`,
-            o.isPaid ? 'Yes' : 'No'
+            o.isPaid ? 'Yes' : 'No',
+            o.isRefunded ? 'Yes' : 'No',
+            o.refundMethod || "-",
+            o.cancelReason || "-"
         ]);
         
         let csvContent = "data:text/csv;charset=utf-8," 
@@ -70,7 +79,7 @@ export default function ReportsPage() {
 
     const handleExportXLSX = () => {
         // Simple hack: Export as HTML table with .xls extension which excel reads perfectly
-        let tableHTML = `<table border="1"><tr><th>ID</th><th>Customer Name</th><th>Status</th><th>Ordered Date</th><th>Last Update</th><th>ORDR</th><th>VLD</th><th>PRP</th><th>RDY</th><th>OTW</th><th>DLV</th><th>Amount</th></tr>`;
+        let tableHTML = `<table border="1"><tr><th>ID</th><th>Customer Name</th><th>Status</th><th>Ordered Date</th><th>Last Update</th><th>ORDR</th><th>VLD</th><th>PRP</th><th>RDY</th><th>OTW</th><th>DLV</th><th>Amount</th><th>Refunded</th><th>Refund Details</th><th>Reason</th></tr>`;
         filteredOrders.forEach(o => {
             tableHTML += `<tr>
                 <td>${o.id}</td>
@@ -85,6 +94,9 @@ export default function ReportsPage() {
                 <td>${formatTime(o.deliveringAt)} ${o.deliveringByName ? '<br/>'+o.deliveringByName : ''}</td>
                 <td>${formatTime(o.deliveredAt)} ${o.deliveredByName ? '<br/>'+o.deliveredByName : ''}</td>
                 <td>${o.totalAmount}</td>
+                <td>${o.isRefunded ? 'YES' : 'NO'}</td>
+                <td>${o.refundMethod || "-"}</td>
+                <td>${o.cancelReason || "-"}</td>
             </tr>`;
         });
         tableHTML += `</table>`;
@@ -146,8 +158,12 @@ export default function ReportsPage() {
                         <p className="text-3xl font-black text-red-600 dark:text-red-400">{filteredOrders.filter(o => o.status === 'cancelled').length}</p>
                     </div>
                     <div className="p-4 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100 dark:border-emerald-900/30">
-                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-500 mb-1">Total Income (Paid)</p>
+                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-500 mb-1">Total Income (Nett)</p>
                         <p className="text-3xl font-black text-emerald-700 dark:text-emerald-400">Rp {income.toLocaleString()}</p>
+                    </div>
+                     <div className="p-4 bg-rose-50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400">
+                        <p className="text-sm font-bold mb-1 uppercase tracking-widest text-[10px]">Total Refund Cash</p>
+                        <p className="text-3xl font-black">Rp {totalRefunds.toLocaleString()}</p>
                     </div>
                 </div>
             </div>
@@ -190,12 +206,14 @@ export default function ReportsPage() {
                                     <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap">
                                        {order.id}
                                        {order.isPaid && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-emerald-500" title="Paid"></span>}
+                                       {order.isRefunded && <span className="ml-2 inline-block w-2 h-2 rounded-full bg-orange-500" title="Refunded Cash"></span>}
                                     </td>
                                     <td className="p-4 font-bold text-zinc-900 dark:text-zinc-100 whitespace-nowrap truncate max-w-[150px]">{order.user?.name || "-"}</td>
                                     <td className="p-4 whitespace-nowrap">
                                        <span className={`uppercase text-[10px] font-black tracking-widest px-2 py-1 rounded text-white ${order.status === 'cancelled' ? 'bg-red-500' : 'bg-zinc-400 dark:bg-zinc-600'}`}>
                                          {order.status}
                                        </span>
+                                       {order.isRefunded && <span className="ml-1 uppercase text-[8px] font-black tracking-tighter px-1 py-0.5 rounded bg-emerald-500 text-white leading-none inline-block">REFUND</span>}
                                     </td>
                                     <td className="p-4 font-medium whitespace-nowrap">Rp {order.totalAmount.toLocaleString()}</td>
                                     <td className="p-4 text-center font-bold text-[10px] text-zinc-500 whitespace-nowrap">{order.orderDate ? format(new Date(order.orderDate), "dd MMM yyyy HH:mm") : "-"}</td>
@@ -226,11 +244,15 @@ export default function ReportsPage() {
                                         {order.deliveredByName && <div className="text-[9px] text-emerald-600 font-bold uppercase">{order.deliveredByName}</div>}
                                     </td>
                                     <td className="p-4 text-center whitespace-nowrap">
-                                       {order.deliveryProofUrl ? (
-                                           <button onClick={() => setFullImage(order.deliveryProofUrl)} className="text-xs font-bold text-blue-600 hover:underline">View Proof</button>
-                                       ) : (
-                                           <span className="text-zinc-400">-</span>
-                                       )}
+                                       <div className="flex flex-col gap-1 items-center">
+                                           {order.deliveryProofUrl && !order.isRefunded && (
+                                               <button onClick={() => setFullImage(order.deliveryProofUrl)} className="text-xs font-bold text-blue-600 hover:underline">Proof</button>
+                                           )}
+                                           {order.deliveryProofUrl && order.isRefunded && (
+                                               <button onClick={() => setFullImage(order.deliveryProofUrl)} className="text-[10px] font-bold text-orange-600 hover:underline">Bukti Transfer</button>
+                                           )}
+                                           {!order.deliveryProofUrl && <span className="text-zinc-400">-</span>}
+                                       </div>
                                     </td>
                                 </tr>
                             ))}

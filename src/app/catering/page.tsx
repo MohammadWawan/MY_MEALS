@@ -10,7 +10,8 @@ import { useRouter } from "next/navigation";
 export default function CateringDashboard() {
   const [orders, setOrders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [printOrder, setPrintOrder] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
@@ -95,8 +96,8 @@ export default function CateringDashboard() {
     const isToday = orderDateStr === new Date().toISOString().split('T')[0];
     const isFinalStatus = ['delivered', 'cancelled'].includes(o.status);
 
-    const matchesDate = dateFilter 
-      ? orderDateStr === dateFilter 
+    const matchesDate = (startDate || endDate) 
+      ? (!startDate || orderDateStr >= startDate) && (!endDate || orderDateStr <= endDate)
       : (isToday || !isFinalStatus || searchQuery !== "");
 
     const matchesStatus = statusFilter === "all" || o.status === statusFilter;
@@ -117,7 +118,11 @@ export default function CateringDashboard() {
         {order.floor || 'No Floor'} {order.location ? ` – ${order.location}` : ''} {order.roomNumber ? `(R.${order.roomNumber})` : ''}
       </p>
       {order.description && (
-        <p className="text-[12px] mt-2 p-2 bg-white/50 rounded-lg text-white font-bold border border-rose-100">
+        <p className={`text-[12px] mt-2 p-2 rounded-lg font-black border ${
+          order.orderType === 'doctor' 
+            ? 'bg-rose-200/30 text-rose-700 dark:text-rose-100 border-rose-200/50' 
+            : 'bg-emerald-200/30 text-emerald-700 dark:text-emerald-100 border-emerald-200/50'
+        }`}>
           Note: {order.description}
         </p>
       )}
@@ -152,9 +157,21 @@ export default function CateringDashboard() {
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
              <input type="text" placeholder="Order ID / Name / MRN..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-950 border-none rounded-2xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500" />
            </div>
-           <div className="relative">
-             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-             <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-950 border-none rounded-2xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500" />
+           <div className="flex gap-2 items-center bg-zinc-50 dark:bg-zinc-950 px-3 rounded-2xl border border-transparent focus-within:ring-2 focus-within:ring-indigo-500 lg:col-span-2">
+              <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-transparent border-none py-3 text-[11px] font-bold focus:ring-0" />
+              <span className="text-zinc-400 font-bold text-xs">–</span>
+              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full bg-transparent border-none py-3 text-[11px] font-bold focus:ring-0" />
+              <button 
+                onClick={() => {
+                  const today = new Date().toISOString().split('T')[0];
+                  setStartDate(today);
+                  setEndDate(today);
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black rounded-xl hover:bg-indigo-700 transition-colors shrink-0 shadow-lg shadow-indigo-600/20 active:scale-95"
+              >
+                TODAY
+              </button>
            </div>
            <div className="relative">
              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
@@ -173,9 +190,9 @@ export default function CateringDashboard() {
 
       <div className="max-w-7xl mx-auto">
          {/* Layout divided into Active Boards (only if no historical date filter) */}
-         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Board 1: New Ticket */}
-            <div className={`bg-zinc-100 dark:bg-zinc-900/50 rounded-[2.5rem] p-8 h-max ${dateFilter ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
+            <div className={`bg-zinc-100 dark:bg-zinc-900/50 rounded-[2.5rem] p-8 h-max ${(startDate || endDate) ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
                <h3 className="text-xl font-black mb-8 text-zinc-400 flex justify-between">New Tickets <span>{filteredOrders.filter(o => o.status === 'created').length}</span></h3>
                <div className="space-y-6">
                  {filteredOrders.filter(o => o.status === 'created').map(order => (
@@ -203,7 +220,7 @@ export default function CateringDashboard() {
             </div>
 
             {/* Board 2: Cooking */}
-            <div className={`bg-amber-50/50 dark:bg-amber-900/10 rounded-[2.5rem] p-8 h-max ${dateFilter ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
+            <div className={`bg-amber-50/50 dark:bg-amber-900/10 rounded-[2.5rem] p-8 h-max ${(startDate || endDate) ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
                <h3 className="text-xl font-black mb-8 text-amber-600/60 flex justify-between">Cooking <span>{filteredOrders.filter(o => o.status === 'preparing').length}</span></h3>
                <div className="space-y-6">
                  {filteredOrders.filter(o => o.status === 'preparing').map(order => (
@@ -223,7 +240,7 @@ export default function CateringDashboard() {
 
             {/* Board 3: History/Completed */}
             <div className="bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[2.5rem] p-8 h-max min-h-[500px]">
-               <h3 className="text-xl font-black mb-8 text-emerald-600/60 flex justify-between">{dateFilter ? 'Historical Records' : 'Completed/History'} <span>{filteredOrders.filter(o => ['ready', 'delivering', 'delivered', 'cancelled', 'pending-approval'].includes(o.status)).length}</span></h3>
+               <h3 className="text-xl font-black mb-8 text-emerald-600/60 flex justify-between">{(startDate || endDate) ? 'Historical Records' : 'Completed/History'} <span>{filteredOrders.filter(o => ['ready', 'delivering', 'delivered', 'cancelled', 'pending-approval'].includes(o.status)).length}</span></h3>
                <div className="space-y-6">
                  {filteredOrders.filter(o => ['ready', 'delivering', 'delivered', 'cancelled', 'pending-approval'].includes(o.status)).map(order => (
                     <div key={order.id} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl border border-emerald-100 dark:border-emerald-900/10 opacity-90">

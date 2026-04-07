@@ -5,7 +5,7 @@ import { menus, orders, orderItems, users, favorites, coupons } from "@/lib/sche
 
 import { eq, desc, and, gte, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import nodemailer from 'nodemailer';
+// import nodemailer from 'nodemailer'; // Moved inside function to avoid SSR issues
 
 const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase();
 
@@ -173,7 +173,7 @@ export async function getFilteredOrders(startDate?: string, endDate?: string) {
   return await getPendingOrders();
 }
 
-export async function updateOrderStatus(orderId: string, status: string, isPaid?: boolean, proofUrl?: string, cancelReason?: string, updatedByName?: string) {
+export async function updateOrderStatus(orderId: string, status: string, isPaid?: boolean, proofUrl?: string, cancelReason?: string, updatedByName?: string, isRefunded?: boolean, refundMethod?: string) {
   const updateData: any = { status };
   if (isPaid !== undefined) updateData.isPaid = isPaid;
   if (proofUrl !== undefined) updateData.deliveryProofUrl = proofUrl;
@@ -186,6 +186,12 @@ export async function updateOrderStatus(orderId: string, status: string, isPaid?
   if (status === 'ready') { updateData.readyAt = now; if (updatedByName) updateData.readyByName = updatedByName; }
   if (status === 'delivering') { updateData.deliveringAt = now; if (updatedByName) updateData.deliveringByName = updatedByName; }
   if (status === 'delivered') { updateData.deliveredAt = now; if (updatedByName) updateData.deliveredByName = updatedByName; }
+
+  if (isRefunded) {
+    updateData.isRefunded = true;
+    updateData.refundedAt = now;
+    updateData.refundMethod = refundMethod || "cash";
+  }
 
   await db.update(orders).set(updateData).where(eq(orders.id, orderId));
   
@@ -248,18 +254,22 @@ export async function registerUser(data: any) {
   }
 }
 
-export async function loginUser(data: any) {
+export async function loginUser(data: { email?: string; password?: string }) {
+  if (!data.email || !data.password) {
+    return { success: false, error: "Mohon isi email dan kata sandi Anda." };
+  }
+
   try {
     const account = await db.query.users.findFirst({
-       where: eq(users.email, data.email)
+       where: eq(users.email, data.email.trim().toLowerCase())
     });
 
     if (!account) {
-       return { success: false, error: "Email belum terdaftar dalam sistem." };
+       return { success: false, error: "Email belum terdaftar. Silakan daftar akun baru." };
     }
 
     if (account.password !== data.password) {
-       return { success: false, error: "Password yang Anda masukkan salah." };
+       return { success: false, error: "Kata sandi yang Anda masukkan salah. Silakan coba lagi." };
     }
 
     return {
@@ -273,7 +283,11 @@ export async function loginUser(data: any) {
       }
     };
   } catch (err: any) {
-    return { success: false, error: "Terjadi kesalahan sistem saat masuk." };
+    console.error("SERVER ACTION ERROR [loginUser]:", err);
+    return { 
+      success: false, 
+      error: "Maaf, sistem sedang mengalami kendala teknis saat memverifikasi akun Anda. Silakan hubungi admin atau coba beberapa saat lagi." 
+    };
   }
 }
 
@@ -294,6 +308,7 @@ export async function requestPasswordReset(email: string) {
     await db.update(users).set({ resetToken, resetTokenExpiry }).where(eq(users.id, account.id));
 
     // Send Email via SMTP
+    const nodemailer = require('nodemailer');
     const transporter = nodemailer.createTransport({
        host: process.env.SMTP_HOST,
        port: parseInt(process.env.SMTP_PORT || '465'),
@@ -378,7 +393,12 @@ export async function getAllOrders() {
 }
 
 export async function getUser(id: number) {
-  return await db.query.users.findFirst({ where: eq(users.id, id) });
+  try {
+    return await db.query.users.findFirst({ where: eq(users.id, id) });
+  } catch (err) {
+    console.error("getUser error:", err);
+    return null;
+  }
 }
 
 export async function getDoctors() {
@@ -577,3 +597,83 @@ export async function validateCoupon(code: string) {
 }
 
 
+export async function getMenuReviews(menuId: string) {
+  try {
+    const results = await db.query.orderItems.findMany({
+      where: eq(orderItems.productId, menuId),
+      with: {
+        order: {
+          with: {
+            user: true
+          }
+        }
+      }
+    });
+
+    return results
+      .filter(item => item.order.submittedRating !== null && item.order.submittedRating !== undefined)
+      .map(item => ({
+        id: item.orderId,
+        userName: item.order.user.name,
+        userImage: item.order.user.image,
+        rating: item.order.submittedRating,
+        reviewText: item.order.reviewText,
+        date: item.order.updatedAt || item.order.orderDate
+      }))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  } catch (err) {
+    console.error("getMenuReviews error:", err);
+    return [];
+  }
+}
+
+export async function sendRefundEmail(email: string, orderId: string, proofUrl: string, refundMethod: string) {
+  try {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+       host: process.env.SMTP_HOST || 'smtp.gmail.com',
+       port: parseInt(process.env.SMTP_PORT || '465'),
+       secure: process.env.SMTP_SECURE === 'true' || true,
+       auth: {
+         user: process.env.SMTP_USER,
+         pass: process.env.SMTP_PASS,
+       },
+    });
+
+    await transporter.sendMail({
+       from: `"My Meals Kasir" <${process.env.SMTP_USER || 'noreply@mymeals.com'}>`,
+       to: email,
+       subject: `Bukti Refund Dana - Order ${orderId}`,
+       html: `
+         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+           <h2 style="color: #10b981;">Dana Refund Telah Dikirim</h2>
+           <p>Pesanan Anda dengan nomor <strong>${orderId}</strong> yang sebelumnya dibatalkan, telah berhasil di-refund ke rekening/tujuan berikut:</p>
+           <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+             <strong>${refundMethod}</strong>
+           </div>
+           <p>Kasir kami telah melampirkan bukti transfer. Gambar bukti transfer disematkan secara langsung di bawah ini:</p>
+           <div style="margin: 30px 0; border: 2px dashed #cbd5e1; padding: 10px; border-radius: 12px; text-align: center; background: #f8fafc;">
+             <img src="cid:bukti-transfer-img" alt="Bukti Transfer" style="max-width: 100%; border-radius: 8px;" />
+           </div>
+           <p>Terima kasih,<br/>Kasir RS Hermina Pasuruan</p>
+         </div>
+       `,
+       attachments: [
+         {
+           filename: `Bukti_Transfer_${orderId}.jpg`,
+           path: proofUrl, 
+           cid: 'bukti-transfer-img' // same cid value as in the html img src
+         }
+       ]
+    });
+
+    // Save proof into deliveryProofUrl since this is a cancelled order and deliveryProofUrl is otherwise unused
+    await db.update(orders).set({ deliveryProofUrl: proofUrl, updatedAt: new Date() }).where(eq(orders.id, orderId));
+    revalidatePath("/cashier/refunds");
+    
+    return { success: true };
+  } catch(err: any) {
+    console.error("Failed to send refund email:", err);
+    return { success: false, error: "Gagal mengirim email refund." };
+  }
+}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { ShoppingCart, Utensils, Stethoscope, MapPin, ShieldAlert, Star, Search, Minus, Plus, ShoppingBag, ArrowRight, X, Info } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { getMenus, createOrder, validateCoupon } from "@/app/actions";
+import { getMenus, createOrder, validateCoupon, getMenuReviews } from "@/app/actions";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -21,6 +21,9 @@ function OrderContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [showReviews, setShowReviews] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
 
 
@@ -79,6 +82,25 @@ function OrderContent() {
       router.push(target);
     }
   }, [mounted, user, isStaff, router]);
+
+  const fetchReviews = async (menuId: string) => {
+    setLoadingReviews(true);
+    try {
+      const data = await getMenuReviews(menuId);
+      setReviews(data);
+    } catch (e) {
+      console.error("fetchReviews error", e);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedItem) {
+      fetchReviews(selectedItem.id);
+      setShowReviews(false);
+    }
+  }, [selectedItem]);
 
   if (!mounted || !user) return null;
 
@@ -153,7 +175,6 @@ function OrderContent() {
   const getItemQty = (id: string) => {
     return cart.find(i => i.id === id)?.qty || 0;
   };
-
   const handleCheckout = async () => {
     if (!user) return router.push("/auth/login");
     if (cart.length === 0) return toast.error("Keranjang kosong!");
@@ -344,13 +365,24 @@ function OrderContent() {
                     <div>
                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-500/10 px-3 py-1 rounded-lg mb-4 inline-block">{selectedItem.category}</span>
                        <h2 className="text-4xl font-black leading-tight text-white mb-2">{selectedItem.name}</h2>
-                       <div className="flex items-center gap-2 text-amber-400">
-                          <Star className="w-4 h-4 fill-current" />
-                          <span className="text-sm font-black">{selectedItem.rating?.toFixed(1) || "0.0"} ({selectedItem.reviews || 0} Ulasan)</span>
+                       <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-1.5 text-amber-400">
+                            <Star className="w-4 h-4 fill-current" />
+                            <span className="text-sm font-black">{selectedItem.rating?.toFixed(1) || "0.0"} ({selectedItem.reviews || 0} Ulasan)</span>
+                          </div>
+                          <button 
+                            onClick={() => router.push(`/ulasan/${selectedItem.id}`)}
+                            className="text-[10px] font-black uppercase text-indigo-500 hover:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors"
+                          >
+                            Lihat Ulasan
+                            <ArrowRight className={`w-3 h-3`} />
+                          </button>
                        </div>
                     </div>
                     <button onClick={() => setSelectedItem(null)} className="hidden md:block p-2 hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"><X className="w-8 h-8" /></button>
                  </div>
+
+
 
                  
                  <p className="text-zinc-500 dark:text-zinc-400 text-lg leading-relaxed mb-6">{selectedItem.description}</p>
