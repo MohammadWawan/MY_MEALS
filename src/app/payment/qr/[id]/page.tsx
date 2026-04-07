@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { QrCode } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { QrCode as QrIcon } from "lucide-react";
+import { useRouter, useParams } from "next/navigation";
+import QRCode from "react-qr-code";
 import { toast } from "sonner";
 import { updateOrderStatus } from "@/app/actions";
 
-export default function CashQRPage({ params }: { params: { id: string } }) {
+export default function CashQRPage() {
   const router = useRouter();
-  const id = params?.id;
+  const params = useParams();
+  const id = params?.id as string || "";
   const [countdown, setCountdown] = useState(300);
   const [isTimerActive, setIsTimerActive] = useState(true);
 
@@ -29,13 +31,13 @@ export default function CashQRPage({ params }: { params: { id: string } }) {
         
         <div className="flex flex-col items-center text-center">
             <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest mb-6">Tunjukkan QR Code ini ke Kasir</p>
-            <div className="w-56 h-56 bg-zinc-50 dark:bg-zinc-950 border-4 border-emerald-100 dark:border-emerald-900/40 rounded-3xl flex items-center justify-center shadow-inner mb-6 relative hover:scale-105 transition-transform duration-300 group">
+            <div className="w-56 h-56 bg-white border-4 border-emerald-100 dark:border-emerald-900/40 rounded-3xl flex items-center justify-center mb-6 relative hover:scale-105 transition-transform duration-300 shadow-sm p-4">
               {countdown > 0 ? (
-                  <QrCode className="w-32 h-32 text-emerald-600 group-hover:scale-110 transition-transform duration-300" />
+                  <QRCode value={id} size={180} fgColor="#059669" className="transition-transform duration-300" />
               ) : (
                   <div className="flex flex-col items-center opacity-40">
-                    <QrCode className="w-16 h-16 mb-2" />
-                    <span className="text-xs font-black uppercase">Expired</span>
+                    <QrIcon className="w-16 h-16 mb-2 text-zinc-500" />
+                    <span className="text-xs font-black uppercase text-zinc-500">Expired</span>
                   </div>
               )}
             </div>
