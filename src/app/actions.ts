@@ -2,12 +2,42 @@
 
 import { db } from "@/lib/db";
 import { menus, orders, orderItems, users, favorites, coupons } from "@/lib/schema";
-
 import { eq, desc, and, gte, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-// import nodemailer from 'nodemailer'; // Moved inside function to avoid SSR issues
+import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
 
 const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase();
+
+// Security Helpers
+const hashPassword = (password: string) => {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+};
+
+const verifyPassword = (password: string, storedHash: string) => {
+  if (!storedHash.includes(":")) {
+     // Fallback for legacy plain-text passwords
+     return password === storedHash;
+  }
+  const [salt, hash] = storedHash.split(":");
+  if (!salt || !hash) return false;
+  try {
+     const testHash = scryptSync(password, salt, 64).toString("hex");
+     return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(testHash, "hex"));
+  } catch(e) {
+     return false;
+  }
+};
+
+const verifyRole = async (executorId: number | undefined, allowedRoles: string[]) => {
+   if (!executorId) throw new Error("Authentication required.");
+   const user = await db.query.users.findFirst({ where: eq(users.id, executorId) });
+   if (!user || !allowedRoles.includes(user.role)) {
+      throw new Error("Persmission denied. You don't have the required role.");
+   }
+   return user;
+};
 
 // Determine order ID prefix based on order type
 const generateOrderId = (orderType: string) => {
@@ -15,7 +45,8 @@ const generateOrderId = (orderType: string) => {
   return `${prefix}-${generateId()}`;
 };
 
-export async function addMenu(data: { name: string, description: string, price: number, category: string, imageUrl: string, menuType?: string, nutrition?: string }) {
+export async function addMenu(data: { name: string, description: string, price: number, category: string, imageUrl: string, menuType?: string, nutrition?: string }, executorId?: number) {
+  await verifyRole(executorId, ['admin']);
   await db.insert(menus).values({
     id: "M-" + generateId(),
     name: data.name,
@@ -34,13 +65,15 @@ export async function getMenus() {
   return await db.select().from(menus);
 }
 
-export async function updateMenu(id: string, data: { name: string, description: string, price: number, category: string, imageUrl: string, menuType?: string, nutrition?: string }) {
+export async function updateMenu(id: string, data: { name: string, description: string, price: number, category: string, imageUrl: string, menuType?: string, nutrition?: string }, executorId?: number) {
+  await verifyRole(executorId, ['admin']);
   await db.update(menus).set(data).where(eq(menus.id, id));
   revalidatePath("/admin/menu");
   revalidatePath("/order");
 }
 
-export async function deleteMenu(id: string) {
+export async function deleteMenu(id: string, executorId?: number) {
+  await verifyRole(executorId, ['admin']);
   // Option: delete associated order items or just soft-delete? 
   // Given SQLite constraints, we might want to keep simple hard deletion if it doesn't break FK.
   // Actually, orders references orderId but products are just stored as JSON or string? orderItems reference productId softly:
@@ -79,7 +112,7 @@ export async function createOrder(data: {
 
     const user = await db.query.users.findFirst({ where: eq(users.id, data.userId) });
     if (user?.role === 'doctor') {
-       // Doctor Quota Logic
+       // Doctor Quota Logic: Max 2 orders per day
        const today = new Date();
        today.setHours(0,0,0,0);
        const tomorrow = new Date(today);
@@ -88,18 +121,26 @@ export async function createOrder(data: {
        const todaysOrders = await db.query.orders.findMany({
           where: and(
              eq(orders.userId, data.userId),
+             eq(orders.orderType, 'doctor'),
              gte(orders.orderDate, today),
              lt(orders.orderDate, tomorrow)
           )
        });
 
-       if (todaysOrders.length > 0) {
+       // Point 8: For doctors, each order should only have 1 qty per item or just 1 item total? 
+       // User says "qty order harusnya 1 saja". Let's force qty to 1 for each item in doctor orders.
+       data.items = data.items.map(it => ({ ...it, quantity: 1 }));
+
+       if (todaysOrders.length >= 2) {
+          return { success: false, error: "Jatah konsumsi Dokter maksimal 2x dalam sehari." };
+       } else if (todaysOrders.length > 0) {
           finalStatus = 'pending-approval';
        } else {
           finalStatus = 'created';
        }
        finalIsPaid = true;
        finalPaymentMethod = "doctor_quota";
+       data.totalAmount = 0; // Doctors are always free
     }
 
     await db.insert(orders).values({
@@ -173,7 +214,10 @@ export async function getFilteredOrders(startDate?: string, endDate?: string) {
   return await getPendingOrders();
 }
 
-export async function updateOrderStatus(orderId: string, status: string, isPaid?: boolean, proofUrl?: string, cancelReason?: string, updatedByName?: string, isRefunded?: boolean, refundMethod?: string) {
+export async function updateOrderStatus(orderId: string, status: string, isPaid?: boolean, proofUrl?: string, cancelReason?: string, updatedByName?: string, isRefunded?: boolean, refundMethod?: string, executorId?: number) {
+  // Allow cashier, catering, waiter, admin to update status. 
+  // For 'cancelled' by customer, it's called with executorId as current user.
+  if (executorId) await verifyRole(executorId, ['admin', 'cashier', 'catering', 'waiter', 'customer']);
   const updateData: any = { status };
   if (isPaid !== undefined) updateData.isPaid = isPaid;
   if (proofUrl !== undefined) updateData.deliveryProofUrl = proofUrl;
@@ -230,19 +274,20 @@ export async function registerUser(data: any) {
       return { success: false, error: "Email ini sudah terdaftar." };
     }
 
-    let role = data.role || "customer";
-    if (!data.role) {
+    let role = data.role;
+    if (!role) {
        if (data.email.includes("admin")) role = "admin";
        else if (data.email.includes("doctor")) role = "doctor";
        else if (data.email.includes("catering")) role = "catering";
        else if (data.email.includes("server") || data.email.includes("waiter")) role = "waiter";
        else if (data.email.includes("cashier")) role = "cashier";
+       else role = "customer";
     }
 
     await db.insert(users).values({
       name: data.name,
       email: data.email,
-      password: data.password, // In real world: hash password!
+      password: hashPassword(data.password), // Securely hashed!
       role: role,
       employeeId: data.employeeId || null,
       createdAt: new Date(),
@@ -265,11 +310,21 @@ export async function loginUser(data: { email?: string; password?: string }) {
     });
 
     if (!account) {
-       return { success: false, error: "Email belum terdaftar. Silakan daftar akun baru." };
+       return { success: false, error: "Email atau kata sandi yang Anda masukkan salah." };
     }
 
-    if (account.password !== data.password) {
-       return { success: false, error: "Kata sandi yang Anda masukkan salah. Silakan coba lagi." };
+    const isPlaintext = !account.password.includes(":");
+    if (!verifyPassword(data.password, account.password)) {
+       return { success: false, error: "Email atau kata sandi yang Anda masukkan salah." };
+    }
+
+    // Auto-upgrade legacy plaintext passwords to secure hashes
+    if (isPlaintext) {
+      try {
+        await db.update(users).set({ password: hashPassword(data.password) }).where(eq(users.id, account.id));
+      } catch (e) {
+        console.error("Failed to upgrade password hash", e);
+      }
     }
 
     return {
@@ -283,11 +338,8 @@ export async function loginUser(data: { email?: string; password?: string }) {
       }
     };
   } catch (err: any) {
-    console.error("SERVER ACTION ERROR [loginUser]:", err);
-    return { 
-      success: false, 
-      error: "Maaf, sistem sedang mengalami kendala teknis saat memverifikasi akun Anda. Silakan hubungi admin atau coba beberapa saat lagi." 
-    };
+    console.error("Login Error:", err);
+    return { success: false, error: err.message || "Gagal melakukan verifikasi keamanan. Silakan coba lagi." };
   }
 }
 
@@ -390,6 +442,21 @@ export async function getAllOrders() {
     },
     orderBy: [desc(orders.orderDate)],
   });
+}
+
+export async function getOrder(id: string) {
+  try {
+    return await db.query.orders.findFirst({
+      where: eq(orders.id, id),
+      with: {
+        orderItems: true,
+        user: true
+      }
+    });
+  } catch (err) {
+    console.error("getOrder error:", err);
+    return null;
+  }
 }
 
 export async function getUser(id: number) {
@@ -675,5 +742,85 @@ export async function sendRefundEmail(email: string, orderId: string, proofUrl: 
   } catch(err: any) {
     console.error("Failed to send refund email:", err);
     return { success: false, error: "Gagal mengirim email refund." };
+  }
+}
+
+export async function sendBillEmail(orderId: string) {
+  try {
+    const order = await db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+      with: {
+        orderItems: true,
+        user: true
+      }
+    });
+
+    if (!order || !order.user?.email) return { success: false, error: "Order or user email not found." };
+
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+       host: process.env.SMTP_HOST || 'smtp.gmail.com',
+       port: parseInt(process.env.SMTP_PORT || '465'),
+       secure: process.env.SMTP_SECURE === 'true' || true,
+       auth: {
+         user: process.env.SMTP_USER,
+         pass: process.env.SMTP_PASS,
+       },
+    });
+
+    const itemsHtml = order.orderItems.map(it => `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">${it.productName}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${it.quantity}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">Rp ${(it.price * it.quantity).toLocaleString()}</td>
+      </tr>
+    `).join('');
+
+    await transporter.sendMail({
+       from: `"My Meals Billing" <${process.env.SMTP_USER || 'noreply@mymeals.com'}>`,
+       to: order.user.email,
+       subject: `E-Bill Pesanan - ${order.id}`,
+       html: `
+         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; padding: 30px;">
+           <h2 style="color: #4f46e5; text-align: center;">E-Bill My Meals</h2>
+           <p>Halo <strong>${order.user.name}</strong>,</p>
+           <p>Terima kasih telah memesan di My Meals. Berikut adalah rincian tagihan Anda:</p>
+           
+           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+             <strong>Order ID:</strong> ${order.id}<br/>
+             <strong>Tanggal:</strong> ${new Date(order.orderDate).toLocaleString('id-ID')}
+           </div>
+
+           <table style="width: 100%; border-collapse: collapse;">
+             <thead>
+               <tr style="background: #eee;">
+                 <th style="padding: 8px; text-align: left;">Menu</th>
+                 <th style="padding: 8px;">Qty</th>
+                 <th style="padding: 8px; text-align: right;">Total</th>
+               </tr>
+             </thead>
+             <tbody>
+               ${itemsHtml}
+             </tbody>
+             <tfoot>
+               <tr>
+                 <td colspan="2" style="padding: 8px; font-weight: bold; text-align: right;">Grand Total:</td>
+                 <td style="padding: 8px; font-weight: bold; text-align: right;">Rp ${order.totalAmount.toLocaleString()}</td>
+               </tr>
+             </tfoot>
+           </table>
+
+           <p style="margin-top: 30px; font-size: 12px; color: #666; text-align: center;">
+             Semoga lekas sembuh.<br/>
+             My Meals - RS Hermina Pasuruan
+           </p>
+         </div>
+       `
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Failed to send bill email:", err);
+    return { success: false, error: "Gagal mengirim email tagihan." };
   }
 }

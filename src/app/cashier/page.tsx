@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Printer, XCircle, Search, Calendar, Banknote, User, CheckCircle, Clock, MapPin, Hash, ShieldCheck, Heart, Trash2, CreditCard, ScanLine, QrCode } from "lucide-react";
-import { getPendingOrders, updateOrderStatus, deleteOrder } from "@/app/actions";
+import { getPendingOrders, updateOrderStatus, deleteOrder, sendBillEmail } from "@/app/actions";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
@@ -18,10 +18,11 @@ export default function CashierDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [scannedId, setScannedId] = useState("");
-  const lastOrderCountRef = useRef(0);
-  const [audioEnabled, setAudioEnabled] = useState(true);
   const { user } = useAuth();
   const router = useRouter();
+  const lastOrderCountRef = useRef(0);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const initializedRef = useRef(false);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -70,17 +71,17 @@ export default function CashierDashboard() {
   useEffect(() => {
     // Exclude 'tunai' from pending notifications since they must be scanned first
     const pendingCount = orders.filter(o => o.status === 'received' && o.paymentMethod !== 'tunai' && o.paymentMethod !== 'cash').length;
-    if (pendingCount > lastOrderCountRef.current && audioEnabled) {
+    
+    // Only play sound if already initialized (prevents sound on first load)
+    if (initializedRef.current && pendingCount > lastOrderCountRef.current && audioEnabled) {
        const audio = new Audio('/tingtung.mp3');
        audio.play().catch(e => {
           console.error("Audio play failed", e);
-          if (e.name === 'NotAllowedError') {
-             // Try to keep audioEnabled but notify that a click is needed
-             // setAudioEnabled(false); 
-          }
        });
     }
+    
     lastOrderCountRef.current = pendingCount;
+    if (orders.length > 0) initializedRef.current = true;
   }, [orders, audioEnabled]);
 
   // Strict Role Protection
@@ -91,6 +92,7 @@ export default function CashierDashboard() {
     }
   }, [mounted, user, router]);
 
+
   if (!mounted || !user) return null;
 
   const validatePayment = async (id: string) => {
@@ -98,10 +100,18 @@ export default function CashierDashboard() {
     setIsSubmitting(true);
     const loadingToast = toast.loading("Memvalidasi pembayaran...");
     try {
-      await updateOrderStatus(id, "created", true, undefined, undefined, user?.name);
+      await updateOrderStatus(id, "created", true, undefined, undefined, user?.name, undefined, undefined, user?.id);
+      
+      // Point 3: Auto-send bill email
+      try {
+         await sendBillEmail(id);
+      } catch(emailErr) {
+         console.error("Email bill failed", emailErr);
+      }
+
       setOrders(prev => prev.map(o => o.id === id ? { ...o, isPaid: true, status: "created" } : o));
       toast.dismiss(loadingToast);
-      toast.success("Pembayaran valid! Pesanan telah diteruskan ke bagian Dapur.");
+      toast.success("Pembayaran valid! Bill telah dikirim ke email customer.");
     } catch (e) {
       toast.dismiss(loadingToast);
       toast.error("Gagal memvalidasi pembayaran. Silakan coba lagi.");
@@ -160,10 +170,6 @@ export default function CashierDashboard() {
   };
 
   const filteredOrders = orders.filter(o => {
-    // Hide pending cash (tunai) orders from the general grid so they have to use the Scanner
-    if ((o.paymentMethod === 'tunai' || o.paymentMethod === 'cash') && o.status === 'received') {
-      return false;
-    }
 
     const matchesSearch = searchQuery === "" || 
        o.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -368,59 +374,68 @@ export default function CashierDashboard() {
         </div>
       )}
 
-      {/* QR Scanner Modal */}
+      {/* Hardware QR/Scanner Modal */}
       {showScanner && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-950/80 backdrop-blur-md p-4">
-           <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col relative">
-              <button className="absolute top-6 right-6 p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" onClick={() => setShowScanner(false)}>
+           <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-[2.5rem] p-8 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col relative">
+              <button 
+                className="absolute top-6 right-6 p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" 
+                onClick={() => { setShowScanner(false); setScannedId(""); }}
+              >
                  <XCircle className="w-6 h-6 text-zinc-500" />
               </button>
-              <h2 className="text-3xl font-black mb-2 flex items-center gap-3"><ScanLine className="text-emerald-500 w-8 h-8" /> Scanner QR Code</h2>
-              <p className="text-zinc-500 text-sm mb-8 font-medium">Gunakan alat Scanner Barcode / QR Code, atau ketik langsung Order ID pasien ke kolom di bawah.</p>
+
+              <div className="text-center mb-10">
+                 <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-3xl flex items-center justify-center mx-auto mb-4 text-emerald-600 dark:text-emerald-400">
+                    <ScanLine className="w-8 h-8" />
+                 </div>
+                 <h2 className="text-3xl font-black tracking-tighter">Scan QR Code Customer</h2>
+                 <p className="text-zinc-500 text-sm font-medium mt-1">Gunakan alat Scanner (Barcode Gun) untuk memindai QR code</p>
+              </div>
               
               {!orders.find(o => o.id === scannedId.trim() && !['cancelled', 'delivered'].includes(o.status)) ? (
                 <div className="flex flex-col items-center">
-                   <div className="w-full relative mb-10">
-                      <ScanLine className="absolute left-6 top-1/2 -translate-y-1/2 w-8 h-8 text-zinc-300" />
+                   <div className="w-full relative mb-8">
+                      <QrCode className="absolute left-6 top-1/2 -translate-y-1/2 w-8 h-8 text-zinc-300" />
                       <input 
                          autoFocus
                          type="text" 
                          value={scannedId} 
-                         onChange={(e) => setScannedId(e.target.value)} 
-                         placeholder="Scan QR Code here..." 
-                         className="w-full text-2xl font-black bg-zinc-50 dark:bg-zinc-950 border-4 border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] py-8 pl-20 pr-8 focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all uppercase tracking-widest shadow-inner text-center"
+                         onChange={(e) => setScannedId(e.target.value.toUpperCase())} 
+                         placeholder="Awaiting scan result..." 
+                         className="w-full text-2xl font-black bg-zinc-50 dark:bg-zinc-950 border-4 border-zinc-200 dark:border-zinc-800 rounded-[2rem] py-8 pl-20 pr-8 focus:ring-4 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all uppercase tracking-widest shadow-inner text-center"
                       />
                    </div>
-                   <div className="w-56 h-56 border-4 border-dashed border-zinc-200 dark:border-zinc-800 rounded-[3rem] flex items-center justify-center opacity-50 relative overflow-hidden bg-zinc-50 dark:bg-zinc-950/50">
-                      <div className="absolute top-0 w-full h-1 bg-emerald-500 shadow-[0_0_30px_10px_#10b981] animate-[scan_2s_ease-in-out_infinite]"></div>
-                      <QrCode className="w-24 h-24 text-zinc-300" />
+                   
+                   <div className="w-full py-6 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl flex flex-col items-center justify-center bg-zinc-50/50 dark:bg-zinc-950/20">
+                      <div className="w-12 h-1 bg-emerald-500 shadow-[0_0_15px_#10b981] animate-bounce mb-4"></div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Silakan tembak QR Code dengan alat scanner</p>
                    </div>
                 </div>
               ) : (
-                <div className="space-y-6 animate-in slide-in-from-bottom-8 duration-500">
+                <div className="animate-in slide-in-from-bottom-8 duration-500">
                    {(() => {
                       const foundOrder = orders.find(o => o.id === scannedId.trim() && !['cancelled', 'delivered'].includes(o.status));
                       if (foundOrder) return (
-                         <div className="bg-emerald-50 dark:bg-emerald-900/10 border-4 border-emerald-200 dark:border-emerald-900/50 p-8 rounded-[3rem] shadow-xl">
-                            <div className="flex justify-between items-start mb-8 pb-8 border-b-2 border-emerald-100 dark:border-emerald-900">
+                         <div className="bg-emerald-50 dark:bg-emerald-900/10 border-4 border-emerald-200 dark:border-emerald-900/50 p-8 rounded-[2.5rem] shadow-xl">
+                            <div className="flex justify-between items-start mb-6 pb-6 border-b-2 border-emerald-100 dark:border-emerald-900/30">
                                <div>
-                                  <p className="text-xs font-black uppercase text-emerald-600 tracking-widest mb-1 flex items-center gap-2"><CheckCircle className="w-4 h-4" /> Pesanan Terdeteksi</p>
+                                  <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest mb-1">Pesanan Ditemukan</p>
                                   <p className="text-3xl font-black text-emerald-950 dark:text-emerald-50 leading-tight">{foundOrder.id}</p>
                                   <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400 mt-1 flex items-center gap-2"><User className="w-4 h-4" /> {foundOrder.customerName}</p>
                                </div>
                                <div className="text-right">
-                                  <p className="text-[10px] font-black uppercase text-emerald-600/60 tracking-widest mb-1">Total Tunai</p>
+                                  <p className="text-[10px] font-black uppercase text-emerald-600/60 tracking-widest mb-1">Total</p>
                                   <p className="text-3xl font-black text-emerald-600">{formatPrice(foundOrder.amount)}</p>
                                </div>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-4">
-                               <button onClick={() => {
-                                   handleCancelOrder(foundOrder);
-                                   setShowScanner(false);
-                                   setScannedId("");
-                               }} className="py-6 border-4 border-rose-200 dark:border-rose-900/50 text-rose-600 font-black rounded-[2rem] hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-all uppercase tracking-widest text-sm flex justify-center items-center gap-2 bg-white dark:bg-zinc-900">
-                                  <XCircle className="w-5 h-5" /> Cancel Order
+                               <button 
+                                 onClick={() => { setShowScanner(false); setScannedId(""); }} 
+                                 className="py-5 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 text-zinc-500 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
+                               >
+                                  Tutup
                                </button>
                                <button 
                                  disabled={isSubmitting || foundOrder.isPaid} 
@@ -429,9 +444,9 @@ export default function CashierDashboard() {
                                    setShowScanner(false);
                                    setScannedId("");
                                  }} 
-                                 className="py-6 bg-emerald-600 text-white font-black rounded-[2rem] shadow-xl shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-50 flex justify-center items-center gap-2"
+                                 className="py-5 bg-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-emerald-600/30 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest text-sm disabled:opacity-50 flex justify-center items-center gap-2"
                                >
-                                  <CheckCircle className="w-5 h-5" /> Validasi Pembayaran
+                                  <CheckCircle className="w-5 h-5" /> Validasi
                                </button>
                             </div>
                          </div>
@@ -443,7 +458,6 @@ export default function CashierDashboard() {
         </div>
       )}
 
-      {/* Modern Receipt / Bill Printing */}
       {printOrder && (
         <div className="print-container hidden print:block bg-white text-black font-sans leading-tight">
            <div className="w-[80mm] mx-auto p-2 bg-white">

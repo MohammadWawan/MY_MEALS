@@ -92,8 +92,9 @@ export default function Home() {
               <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-6 text-indigo-600 dark:text-indigo-400">
                  <ShieldCheck className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Secure QRIS</h3>
-              <p className="text-zinc-600 dark:text-zinc-400 text-sm">Integrated QR payment and bank validations with receipt verification.</p>
+              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Kemudahan Memesan</h3>
+              <p className="text-zinc-600 dark:text-zinc-400 text-sm">Kemudahan dalam memesan makanan dengan antarmuka yang ramah pengguna.</p>
+
            </div>
         </div>
       </div>

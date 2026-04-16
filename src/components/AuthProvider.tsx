@@ -128,11 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const expiry = new Date().getTime() + expiryDelay;
     const authData = JSON.stringify({ user: newUser, expiry });
     
-    if (rememberMe) {
-       localStorage.setItem("medpos_auth", authData);
-    } else {
-       sessionStorage.setItem("medpos_auth", authData);
-    }
+    localStorage.setItem("medpos_auth", authData);
+
   };
 
   const logout = () => {
@@ -147,17 +144,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
        const newUserState = { ...user, ...data };
        setUser(newUserState);
        // Sync to storage
-       const isLocal = !!localStorage.getItem("medpos_auth");
-       const storedStr = localStorage.getItem("medpos_auth") || sessionStorage.getItem("medpos_auth");
-       if (storedStr) {
-          try {
-             const parsed = JSON.parse(storedStr);
-             parsed.user = newUserState;
-             const authData = JSON.stringify(parsed);
-             if (isLocal) localStorage.setItem("medpos_auth", authData);
-             else sessionStorage.setItem("medpos_auth", authData);
-          } catch(e) {}
-       }
+        const storedStr = localStorage.getItem("medpos_auth");
+        if (storedStr) {
+           try {
+              const parsed = JSON.parse(storedStr);
+              parsed.user = newUserState;
+              const authData = JSON.stringify(parsed);
+              localStorage.setItem("medpos_auth", authData);
+           } catch(e) {}
+        }
+
     }
   };
 

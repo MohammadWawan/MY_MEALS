@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Image as ImageIcon, Save, CheckCircle2, Trash2, Edit2, XCircle, PlusCircle, MinusCircle } from "lucide-react";
 import { addMenu, getMenus, updateMenu, deleteMenu } from "@/app/actions";
 import { toast } from "sonner";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function AdminMenu() {
   const [success, setSuccess] = useState(false);
@@ -11,6 +12,7 @@ export default function AdminMenu() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     getMenus().then(data => setMenuItems(data));
@@ -79,11 +81,11 @@ export default function AdminMenu() {
         };
 
         if (editingId) {
-             await updateMenu(editingId, payload);
+             await updateMenu(editingId, payload, user?.id);
              toast.dismiss(loadingToast);
              toast.success("Data menu berhasil diperbarui.");
         } else {
-             await addMenu(payload);
+             await addMenu(payload, user?.id);
              toast.dismiss(loadingToast);
              toast.success("Menu baru berhasil ditambahkan.");
         }
@@ -139,7 +141,7 @@ export default function AdminMenu() {
       if(confirm("Apakah Anda yakin ingin menghapus menu ini dari katalog?")) {
          const loadingToast = toast.loading("Menghapus menu...");
          try {
-            await deleteMenu(id);
+            await deleteMenu(id, user?.id);
             toast.dismiss(loadingToast);
             toast.success("Menu berhasil dihapus.");
             const updated = await getMenus();

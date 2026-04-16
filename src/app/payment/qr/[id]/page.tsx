@@ -5,7 +5,7 @@ import { QrCode as QrIcon } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import QRCode from "react-qr-code";
 import { toast } from "sonner";
-import { updateOrderStatus } from "@/app/actions";
+import { updateOrderStatus, getOrder } from "@/app/actions";
 
 export default function CashQRPage() {
   const router = useRouter();
@@ -13,6 +13,22 @@ export default function CashQRPage() {
   const id = params?.id as string || "";
   const [countdown, setCountdown] = useState(300);
   const [isTimerActive, setIsTimerActive] = useState(true);
+
+  // Auto-close / Check validation status
+  useEffect(() => {
+    if (!id) return;
+    const interval = setInterval(async () => {
+      try {
+        const order = await getOrder(id);
+        if (order && order.status !== 'received') {
+          toast.success("Pembayaran telah divalidasi oleh kasir!");
+          clearInterval(interval);
+          router.replace("/tracking");
+        }
+      } catch(e) {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [id, router]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;

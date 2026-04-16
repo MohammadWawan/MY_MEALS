@@ -42,3 +42,4 @@ sqlite.db-journal
 # docker-compose.yml
 docker-compose.override.yml
 .env
+certificates
