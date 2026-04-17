@@ -1,12 +1,18 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { menus, orders, orderItems, users, favorites, coupons } from "@/lib/schema";
+import { menus, orders, orderItems, users, favorites, coupons, locations, doctorActions } from "@/lib/schema";
 import { eq, desc, and, gte, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
 
 const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase();
+
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+const tomorrow = new Date(today);
+tomorrow.setDate(tomorrow.getDate() + 1);
 
 // Security Helpers
 const hashPassword = (password: string) => {
@@ -112,11 +118,17 @@ export async function createOrder(data: {
 
     const user = await db.query.users.findFirst({ where: eq(users.id, data.userId) });
     if (user?.role === 'doctor') {
-       // Doctor Quota Logic: Max 2 orders per day
-       const today = new Date();
-       today.setHours(0,0,0,0);
-       const tomorrow = new Date(today);
-       tomorrow.setDate(tomorrow.getDate() + 1);
+       // Doctor Quota Logic inspired by surgical action count
+       const dateStr = today.toISOString().split('T')[0];
+       const doctorAction = await db.query.doctorActions.findFirst({
+          where: and(
+             eq(doctorActions.userId, data.userId),
+             eq(doctorActions.date, dateStr)
+          )
+       });
+
+       const surgicalActionCount = doctorAction?.count ?? 1;
+       const maxMeals = surgicalActionCount >= 2 ? 2 : 1;
 
        const todaysOrders = await db.query.orders.findMany({
           where: and(
@@ -127,12 +139,11 @@ export async function createOrder(data: {
           )
        });
 
-       // Point 8: For doctors, each order should only have 1 qty per item or just 1 item total? 
-       // User says "qty order harusnya 1 saja". Let's force qty to 1 for each item in doctor orders.
+       // Point 8: For doctors, each order should only have 1 qty per item
        data.items = data.items.map(it => ({ ...it, quantity: 1 }));
 
-       if (todaysOrders.length >= 2) {
-          return { success: false, error: "Jatah konsumsi Dokter maksimal 2x dalam sehari." };
+       if (todaysOrders.length >= maxMeals) {
+          return { success: false, error: `Jatah konsumsi Dokter maksimal ${maxMeals}x sesuai jumlah tindakan (${surgicalActionCount}).` };
        } else if (todaysOrders.length > 0) {
           finalStatus = 'pending-approval';
        } else {
@@ -823,4 +834,120 @@ export async function sendBillEmail(orderId: string) {
     console.error("Failed to send bill email:", err);
     return { success: false, error: "Gagal mengirim email tagihan." };
   }
+}
+
+// ==== LOCATION ACTIONS ====
+
+export async function getLocations() {
+  return await db.query.locations.findMany({
+    orderBy: [desc(locations.createdAt)]
+  });
+}
+
+export async function addLocation(data: { floor: string, name: string }) {
+  await db.insert(locations).values({
+    id: "LOC-" + generateId(),
+    floor: data.floor,
+    name: data.name,
+    createdAt: new Date()
+  });
+  revalidatePath("/admin/locations");
+  revalidatePath("/order");
+}
+
+export async function updateLocation(id: string, data: { floor: string, name: string }) {
+  await db.update(locations).set(data).where(eq(locations.id, id));
+  revalidatePath("/admin/locations");
+  revalidatePath("/order");
+}
+
+export async function deleteLocation(id: string) {
+  await db.delete(locations).where(eq(locations.id, id));
+  revalidatePath("/admin/locations");
+  revalidatePath("/order");
+}
+
+// ==== DOCTOR ACTION COUNT ACTIONS ====
+
+export async function getDoctorActions(userId: number, date?: string) {
+   const d = date || new Date().toISOString().split('T')[0];
+   return await db.query.doctorActions.findFirst({
+      where: and(eq(doctorActions.userId, userId), eq(doctorActions.date, d))
+   });
+}
+
+export async function updateDoctorActionCount(userId: number, date: string, count: number) {
+   const existing = await db.query.doctorActions.findFirst({
+      where: and(eq(doctorActions.userId, userId), eq(doctorActions.date, date))
+   });
+
+   if (existing) {
+      await db.update(doctorActions).set({ count }).where(eq(doctorActions.id, existing.id));
+   } else {
+      await db.insert(doctorActions).values({
+         id: "DAC-" + generateId(),
+         userId,
+         date,
+         count
+      });
+   }
+   revalidatePath("/admin/doctors");
+}
+
+// ==== USER SETTINGS ====
+
+export async function changeEmail(userId: number, newEmail: string) {
+   const existing = await db.query.users.findFirst({ where: eq(users.email, newEmail) });
+   if (existing && existing.id !== userId) throw new Error("Email ini sudah digunakan akun lain.");
+   
+   await db.update(users).set({ email: newEmail, updatedAt: new Date() }).where(eq(users.id, userId));
+   revalidatePath("/profile");
+}
+
+export async function changePassword(userId: number, newPassword: string) {
+   await db.update(users).set({ password: hashPassword(newPassword), updatedAt: new Date() }).where(eq(users.id, userId));
+   revalidatePath("/profile");
+}
+
+// ==== BULK IMPORT ACTIONS ====
+
+export async function bulkAddLocations(data: { floor: string, name: string }[]) {
+  for (const item of data) {
+    if (!item.floor || !item.name) continue;
+    await db.insert(locations).values({
+      id: "LOC-" + generateId(),
+      floor: item.floor,
+      name: item.name,
+      createdAt: new Date()
+    });
+  }
+  revalidatePath("/admin/locations");
+  revalidatePath("/order");
+  return { success: true };
+}
+
+export async function bulkAddUsers(data: { name: string, email: string, password?: string, role: string, employeeId?: string }[]) {
+  let count = 0;
+  for (const item of data) {
+    if (!item.name || !item.email || !item.role) continue;
+    
+    const existing = await db.query.users.findFirst({ where: eq(users.email, item.email) });
+    if (existing) continue;
+
+    const pass = item.password || "Hermina2026!";
+    
+    await db.insert(users).values({
+       name: item.name,
+       email: item.email,
+       password: hashPassword(pass),
+       role: item.role,
+       employeeId: item.employeeId,
+       createdAt: new Date(),
+       updatedAt: new Date()
+    });
+    count++;
+  }
+  revalidatePath("/admin/doctors");
+  revalidatePath("/admin/employees");
+  return { success: true, count };
 }

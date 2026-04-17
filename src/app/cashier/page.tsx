@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Printer, XCircle, Search, Calendar, Banknote, User, CheckCircle, Clock, MapPin, Hash, ShieldCheck, Heart, Trash2, CreditCard, ScanLine, QrCode } from "lucide-react";
+import { Printer, XCircle, Search, Calendar, Banknote, User, CheckCircle, Clock, MapPin, Hash, ShieldCheck, Heart, Trash2, CreditCard, ScanLine, QrCode, Mail, Maximize2, HelpCircle } from "lucide-react";
 import { getPendingOrders, updateOrderStatus, deleteOrder, sendBillEmail } from "@/app/actions";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
@@ -39,7 +39,7 @@ export default function CashierDashboard() {
         location: dbOrder.location,
         customerName: dbOrder.user?.name || 'Unknown',
         employeeId: dbOrder.user?.employeeId || null,
-        items: dbOrder.orderItems.map((oi: any) => ({
+        items: (dbOrder.orderItems || []).map((oi: any) => ({
           name: oi.productName,
           qty: oi.quantity,
           price: oi.price
@@ -133,21 +133,35 @@ export default function CashierDashboard() {
 
   const handleCancelOrder = async (order: any) => {
     const reason = prompt("Masukkan alasan pembatalan:");
-    if (reason === null) return; // User cancelled prompt
+    if (reason === null) return; 
 
-    let refundCash = false;
+    let isRefundRequest = false;
+    let refundMethod = "cash";
+
     if (order.isPaid) {
-      refundCash = confirm("Pesanan ini sudah dibayar. Apakah Anda telah mengembalikan uang secara TUNAI kepada customer?");
+      const isCash = confirm("Pesanan ini sudah dibayar. Apakah Anda telah mengembalikan uang secara TUNAI kepada customer?");
+      if (isCash) {
+        isRefundRequest = true;
+        refundMethod = "cash";
+      } else {
+        const target = prompt("Masukkan Detail Bank / No Rekening / E-Wallet untuk Refund Transfer:");
+        if (!target) {
+            toast.error("Pembatalan dibatalkan. Info rekening refund wajib diisi untuk non-tunai.");
+            return;
+        }
+        isRefundRequest = true;
+        refundMethod = target;
+      }
     }
 
     if (isSubmitting) return;
     setIsSubmitting(true);
     const loadingToast = toast.loading("Membatalkan pesanan...");
     try {
-      await updateOrderStatus(order.id, "cancelled", false, undefined, reason, user?.name, refundCash, refundCash ? "cash" : undefined);
-      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "cancelled", isPaid: false, isRefunded: refundCash } : o));
+      await updateOrderStatus(order.id, "cancelled", false, undefined, reason, user?.name, isRefundRequest, refundMethod);
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: "cancelled", isPaid: false, isRefunded: isRefundRequest, refundMethod } : o));
       toast.dismiss(loadingToast);
-      toast.warning(refundCash ? "Pesanan dibatalkan & uang dikembalikan secara tunai." : "Pesanan berhasil dibatalkan.");
+      toast.warning(isRefundRequest && refundMethod === "cash" ? "Pesanan dibatalkan & uang dikembalikan secara tunai." : isRefundRequest ? "Pesanan dibatalkan & masuk antrean refund transfer." : "Pesanan berhasil dibatalkan.");
     } catch (e) {
       toast.dismiss(loadingToast);
       toast.error("Gagal membatalkan pesanan.");
@@ -233,8 +247,13 @@ export default function CashierDashboard() {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full md:w-auto mt-6 md:mt-0">
-             <button onClick={() => router.push("/cashier/refunds")} className="px-6 py-4 bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-900 hover:bg-rose-100 text-rose-600 font-black rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all w-full md:w-auto whitespace-nowrap text-sm">
+             <button onClick={() => router.push("/cashier/refunds")} className="px-6 py-4 bg-rose-50 dark:bg-rose-950 border border-rose-200 dark:border-rose-900 hover:bg-rose-100 text-rose-600 font-black rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all w-full md:w-auto whitespace-nowrap text-sm relative">
                  Approve Refund
+                 {orders.filter(o => o.status === 'cancelled' && o.isRefunded && o.refundMethod !== 'cash' && !o.deliveryProofUrl).length > 0 && (
+                    <span className="absolute -top-2 -right-2 w-6 h-6 bg-rose-600 text-white text-[10px] flex items-center justify-center rounded-full animate-bounce shadow-lg border-2 border-white dark:border-zinc-900 font-black">
+                       {orders.filter(o => o.status === 'cancelled' && o.isRefunded && o.refundMethod !== 'cash' && !o.deliveryProofUrl).length}
+                    </span>
+                 )}
              </button>
              <button onClick={() => { setShowScanner(true); setScannedId(""); }} className="px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-95 transition-all text-sm w-full md:w-auto whitespace-nowrap">
                 <ScanLine className="w-5 h-5" /> SCAN QR
@@ -292,28 +311,38 @@ export default function CashierDashboard() {
                       <User className="text-zinc-500" />
                    </div>
                    <div>
-                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Nama Pemesan</p>
-                      <p 
-                        className="font-black text-lg text-zinc-800 dark:text-zinc-100 uppercase truncate max-w-[180px] cursor-help"
-                        onClick={() => setClickedText({ title: "Nama Pemesan", content: order.customerName })}
-                        title="Klik untuk lihat detail"
-                      >
-                        {order.customerName}
-                      </p>
-                   </div>
+                       <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Nama Pemesan</p>
+                       <div className="flex items-center gap-2 group/hover">
+                          <p className="font-black text-lg text-zinc-800 dark:text-zinc-100 uppercase truncate max-w-[180px]">
+                            {order.customerName}
+                          </p>
+                          <button 
+                            onClick={() => setClickedText({ title: "Nama Pemesan", content: order.customerName })}
+                            className="opacity-0 group-hover/hover:opacity-100 transition-opacity p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full"
+                          >
+                            <HelpCircle className="w-4 h-4 text-indigo-500" />
+                          </button>
+                       </div>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                    {order.orderType !== 'doctor' && (
-                     <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 cursor-help" onClick={() => setClickedText({ title: "MRN", content: order.mrn || "—" })}>
-                        <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Hash className="w-3 h-3" /> MRN</p>
-                        <p className="font-black text-sm text-zinc-800 dark:text-zinc-100">{order.mrn || "—"}</p>
-                     </div>
-                   )}
-                    <div className={`${order.orderType === 'doctor' ? 'col-span-2' : 'col-span-1'} bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 cursor-help`} onClick={() => setClickedText({ title: "Lokasi", content: `${order.floor} ${order.location || ""} ${order.roomNumber ? `(Kamar: ${order.roomNumber})` : ""}` })}>
-                      <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> Lokasi</p>
-                      <p className="font-black text-xs text-zinc-800 dark:text-zinc-100 truncate">{order.floor} {order.location ? `– ${order.location}` : ''} {order.roomNumber ? `(Kamar: ${order.roomNumber})` : ''}</p>
-                   </div>
+                      <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 group/hover">
+                         <div className="flex justify-between items-center mb-1">
+                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1"><Hash className="w-3 h-3" /> MRN</p>
+                            <button onClick={() => setClickedText({ title: "MRN", content: order.mrn || "—" })} className="opacity-0 group-hover/hover:opacity-100 transition-opacity"><HelpCircle className="w-3 h-3 text-indigo-500" /></button>
+                         </div>
+                         <p className="font-black text-sm text-zinc-800 dark:text-zinc-100">{order.mrn || "—"}</p>
+                      </div>
+                    )}
+                     <div className={`${order.orderType === 'doctor' ? 'col-span-2' : 'col-span-1'} bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 group/hover`}>
+                       <div className="flex justify-between items-center mb-1">
+                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1"><MapPin className="w-3 h-3" /> Lokasi</p>
+                          <button onClick={() => setClickedText({ title: "Lokasi", content: `${order.floor} ${order.location || ""} ${order.roomNumber ? `(Kamar: ${order.roomNumber})` : ""}` })} className="opacity-0 group-hover/hover:opacity-100 transition-opacity"><HelpCircle className="w-3 h-3 text-indigo-500" /></button>
+                       </div>
+                       <p className="font-black text-xs text-zinc-800 dark:text-zinc-100 truncate">{order.floor} {order.location ? `– ${order.location}` : ''} {order.roomNumber ? `(Kamar: ${order.roomNumber})` : ''}</p>
+                    </div>
                 </div>
 
                 {order.description && (
@@ -329,14 +358,14 @@ export default function CashierDashboard() {
                       {order.orderType === 'doctor' ? "FREE" : formatPrice(order.amount)}
                    </p>
                 </div>
-             </div>
-             
-             {/* Image Preview */}
-             {order.receiptImageUrl && !order.isPaid && (
+              </div>
+
+              {/* Image Preview */}
+             {order.receiptImageUrl && (
                <div className="mt-8 group relative overflow-hidden rounded-3xl cursor-pointer shadow-lg border-4 border-white dark:border-zinc-800" onClick={() => setFullImage(order.receiptImageUrl)}>
                  <img src={order.receiptImageUrl} alt="Receipt" className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-110" />
                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <p className="text-white font-black text-xs uppercase tracking-widest">Klik Perbesar</p>
+                    <Maximize2 className="text-white w-10 h-10" />
                  </div>
                </div>
              )}
@@ -363,11 +392,25 @@ export default function CashierDashboard() {
                     )}
                   </>
                 ) : (
-                 order.status !== 'cancelled' && (
-                   <button onClick={() => handlePrint(order)} className="flex items-center justify-center gap-3 w-full py-5 bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white font-black rounded-[1.5rem] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-sm uppercase tracking-widest">
-                     <Printer className="w-5 h-5" /> Cetak Bill
-                   </button>
-                 )
+                  order.status !== 'cancelled' && (
+                    <div className="w-full flex gap-4">
+                      <button onClick={() => handlePrint(order)} className="flex-1 flex items-center justify-center gap-3 py-5 bg-zinc-900 dark:bg-white dark:text-zinc-900 text-white font-black rounded-[1.5rem] shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-sm uppercase tracking-widest">
+                        <Printer className="w-5 h-5" /> Cetak Bill
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          const l = toast.loading("Mengirim email tagihan...");
+                          try { await sendBillEmail(order.id); toast.success("Email terkirim!"); } 
+                          catch(e) { toast.error("Gagal kirim email"); } 
+                          finally { toast.dismiss(l); }
+                        }}
+                        className="p-5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded-3xl hover:bg-zinc-200 transition-all flex items-center justify-center" 
+                        title="Share via Email"
+                      >
+                         <Mail className="w-6 h-6" />
+                      </button>
+                    </div>
+                  )
                )}
                
                {order.status === 'cancelled' && (
@@ -393,13 +436,6 @@ export default function CashierDashboard() {
          <p className="text-[10px] font-bold text-zinc-400">COPYRIGHT &copy; 2026 • HOSPITAL POS INTEGRATED SYSTEM</p>
       </footer>
 
-      {/* Image Viewer Modal */}
-      {fullImage && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-8 md:p-12 print:hidden backdrop-blur-2xl" onClick={() => setFullImage(null)}>
-            <button className="absolute top-8 right-8 w-14 h-14 flex items-center justify-center bg-white/10 hover:bg-rose-500 text-white rounded-full transition-all" onClick={() => setFullImage(null)}><XCircle /></button>
-            <img src={fullImage} className="max-w-full max-h-full object-contain rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-800" alt="Full Receipt" />
-        </div>
-      )}
 
       {/* Hardware QR/Scanner Modal */}
       {showScanner && (
@@ -595,6 +631,19 @@ export default function CashierDashboard() {
                 Tutup
               </button>
            </div>
+        </div>
+      )}
+
+      {/* Full Image Preview Modal */}
+      {fullImage && (
+        <div className="fixed inset-0 z-[130] bg-black/95 flex flex-col items-center justify-center p-6" onClick={() => setFullImage(null)}>
+           <button onClick={() => setFullImage(null)} className="absolute top-10 right-10 text-white/50 hover:text-white transition-colors p-4">
+              <XCircle className="w-10 h-10" />
+           </button>
+           <div className="relative w-full max-w-4xl h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
+              <img src={fullImage} alt="Receipt Full" className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl" />
+           </div>
+           <p className="text-white/40 text-[10px] font-black uppercase tracking-widest mt-8">Klik di mana saja untuk menutup</p>
         </div>
       )}
     </div>

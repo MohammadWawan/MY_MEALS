@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
 import { useTheme } from "next-themes";
-import { ShoppingCart, Moon, Sun, Menu, X } from "lucide-react";
+import { ShoppingCart, Moon, Sun, Menu, X, Languages } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLanguage } from "./LanguageProvider";
 
 export default function Navigation() {
   const { user, logout, cart } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
@@ -67,38 +69,35 @@ export default function Navigation() {
               <div className="hidden lg:flex ml-10 items-center gap-1">
                 {(isAdmin || user.role === 'customer' || user.role === 'doctor') && (
                   <>
-                    <Link href="/order" className={linkClass('/order')}>Order Menu</Link>
-                    <Link href="/tracking" className={linkClass('/tracking')}>My Orders</Link>
+                    <Link href="/order" className={linkClass('/order')}>{t('nav.order')}</Link>
+                    <Link href="/tracking" className={linkClass('/tracking')}>{t('nav.my_orders')}</Link>
                   </>
                 )}
                 {(isAdmin || user.role === 'customer') && (
-                  <Link href="/payment" className={linkClass('/payment')}>Payments</Link>
+                  <Link href="/payment" className={linkClass('/payment')}>{t('nav.payments')}</Link>
                 )}
                 {(isAdmin || user.role === 'catering') && (
-                  <Link href="/catering" className={linkClass('/catering')}>Kitchen Hub</Link>
+                  <Link href="/catering" className={linkClass('/catering')}>{t('nav.kitchen')}</Link>
                 )}
                 {(isAdmin || user.role === 'waiter') && (
-                  <Link href="/server" className={linkClass('/server')}>Server Dash</Link>
+                  <Link href="/server" className={linkClass('/server')}>{t('nav.server')}</Link>
                 )}
                 {(isAdmin || user.role === 'cashier') && (
-                  <Link href="/cashier" className={linkClass('/cashier')}>Validations</Link>
+                  <Link href="/cashier" className={linkClass('/cashier')}>{t('nav.validations')}</Link>
                 )}
                 {(isAdmin || user.role === 'catering' || user.role === 'cashier' || user.role === 'waiter') && (
-                  <Link href="/reports" className={linkClass('/reports')}>Reports</Link>
-                )}
-                {user.role === 'admin' && (
-                  <>
-                    <Link href="/admin/menu" className={linkClass('/admin/menu', 'emerald')}>Manage Menus</Link>
-                    <Link href="/admin/coupons" className={linkClass('/admin/coupons', 'rose')}>Manage Coupons</Link>
-                    <Link href="/admin/doctors" className={linkClass('/admin/doctors', 'indigo')}>Add Doctor</Link>
-                    <Link href="/admin/employees" className={linkClass('/admin/employees', 'amber')}>Manage Staff</Link>
-
-                  </>
+                  <Link href="/reports" className={linkClass('/reports')}>{t('nav.reports')}</Link>
                 )}
               </div>
             )}
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+             {mounted && (
+               <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl">
+                  <button onClick={() => setLanguage('id')} className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${language === 'id' ? 'bg-white dark:bg-zinc-700 text-indigo-600 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}>ID</button>
+                  <button onClick={() => setLanguage('en')} className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all ${language === 'en' ? 'bg-white dark:bg-zinc-700 text-indigo-600 shadow-sm' : 'text-zinc-400 hover:text-zinc-600'}`}>EN</button>
+               </div>
+             )}
              {mounted && (
                <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-400 transition-colors">
                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -124,17 +123,17 @@ export default function Navigation() {
                                {user.name.charAt(0).toUpperCase()}
                            </div>
                         )}
-                        <div className="text-right hidden sm:block shrink-0">
-                           <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 transition-colors leading-tight whitespace-nowrap">
-                               Hy, {user.name}
-                           </p>
-                           <p className="text-[9px] font-black text-indigo-500/60 dark:text-indigo-400/60 uppercase tracking-[0.2em] whitespace-nowrap">{user.role}</p>
-                        </div>
+                         <div className="text-right hidden sm:block shrink-0">
+                            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-600 transition-colors leading-tight whitespace-nowrap">
+                                {t('common.greeting')}, {user.name}
+                            </p>
+                            <p className="text-[9px] font-black text-indigo-500/60 dark:text-indigo-400/60 uppercase tracking-[0.2em] whitespace-nowrap">{t(`role.${user.role}`)}</p>
+                         </div>
                      </Link>
                   </div>
-                  <button onClick={handleLogout} className="hidden lg:block bg-red-50 hover:bg-red-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/50 text-red-600 dark:text-rose-400 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm shrink-0">
-                    Logout
-                  </button>
+                   <button onClick={handleLogout} className="hidden lg:block bg-red-50 hover:bg-red-100 dark:bg-rose-950/30 dark:hover:bg-rose-900/50 text-red-600 dark:text-rose-400 px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm shrink-0">
+                     {t('nav.logout')}
+                   </button>
                   <button 
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
                     className="lg:hidden p-2 ml-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg text-zinc-600 dark:text-zinc-300"
@@ -155,46 +154,34 @@ export default function Navigation() {
         {isMobileMenuOpen && user && (
           <div className="lg:hidden py-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 animate-in slide-in-from-top-5">
             <div className="flex flex-col space-y-2 px-2">
-                {(isAdmin || user.role === 'customer' || user.role === 'doctor') && (
+                 {(isAdmin || user.role === 'customer' || user.role === 'doctor') && (
                   <>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/order" className={mobileLinkClass('/order')}>Order Menu</Link>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/tracking" className={mobileLinkClass('/tracking')}>My Orders</Link>
+                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/order" className={mobileLinkClass('/order')}>{t('nav.order')}</Link>
+                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/tracking" className={mobileLinkClass('/tracking')}>{t('nav.my_orders')}</Link>
                   </>
                 )}
                 {(isAdmin || user.role === 'customer') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/payment" className={mobileLinkClass('/payment')}>Payments</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/payment" className={mobileLinkClass('/payment')}>{t('nav.payments')}</Link>
                 )}
                 {(isAdmin || user.role === 'catering') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/catering" className={mobileLinkClass('/catering')}>Kitchen Hub</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/catering" className={mobileLinkClass('/catering')}>{t('nav.kitchen')}</Link>
                 )}
                 {(isAdmin || user.role === 'waiter') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/server" className={mobileLinkClass('/server')}>Server Dash</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/server" className={mobileLinkClass('/server')}>{t('nav.server')}</Link>
                 )}
                 {(isAdmin || user.role === 'cashier') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/cashier" className={mobileLinkClass('/cashier')}>Validations</Link>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/cashier" className={mobileLinkClass('/cashier')}>{t('nav.validations')}</Link>
                 )}
                 {(isAdmin || user.role === 'catering' || user.role === 'cashier' || user.role === 'waiter') && (
-                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/reports" className={mobileLinkClass('/reports')}>Reports</Link>
-                )}
-                {user.role === 'admin' && (
-                  <>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/menu" className={mobileLinkClass('/admin/menu', 'emerald')}>Manage Menus</Link>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/coupons" className={mobileLinkClass('/admin/coupons', 'rose')}>Manage Coupons</Link>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/doctors" className={mobileLinkClass('/admin/doctors')}>Add Doctor</Link>
-                    <Link onClick={() => setIsMobileMenuOpen(false)} href="/admin/employees" className={mobileLinkClass('/admin/employees', 'amber')}>Manage Staff</Link>
-
-                  </>
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/reports" className={mobileLinkClass('/reports')}>{t('nav.reports')}</Link>
                 )}
                 
                 <hr className="my-2 border-zinc-200 dark:border-zinc-800" />
                 <button 
-                  onClick={() => {
-                     setIsMobileMenuOpen(false);
-                     handleLogout();
-                  }} 
-                  className="w-full text-left text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30 px-4 py-3 rounded-xl text-sm font-bold transition-all"
+                  onClick={logout}
+                  className="px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl shadow-lg shadow-rose-600/20 active:scale-95 transition-all uppercase tracking-widest"
                 >
-                  Logout session
+                  {t('nav.logout')}
                 </button>
             </div>
           </div>

@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChefHat, MonitorPlay, Search, Calendar, Filter, User, Stethoscope, ShieldAlert, CheckCircle, Clock } from "lucide-react";
+import { ChefHat, MonitorPlay, Search, Calendar, Filter, User, Stethoscope, ShieldAlert, CheckCircle, Clock, Maximize2 } from "lucide-react";
 import { getPendingOrders, updateOrderStatus } from "@/app/actions";
 import { toast } from "sonner";
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function CateringDashboard() {
+  const { t } = useLanguage();
   const [orders, setOrders] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -35,7 +37,7 @@ export default function CateringDashboard() {
         orderType: dbOrder.orderType,
         customerName: dbOrder.user?.name || 'Unknown',
         employeeId: dbOrder.user?.employeeId || null,
-        itemDetails: dbOrder.orderItems.map((oi: any) => ({ name: oi.productName, qty: oi.quantity, price: oi.price })),
+        itemDetails: (dbOrder.orderItems || []).map((oi: any) => ({ name: oi.productName, qty: oi.quantity, price: oi.price })),
         isPaid: dbOrder.isPaid
       })));
     } catch(e) {
@@ -61,19 +63,25 @@ export default function CateringDashboard() {
   if (!mounted || !user) return null;
 
   const updateStatus = async (id: string, newStatus: string) => {
-    if (isSubmitting) return;
+    if (isSubmitting) return; // Prevent double clicks
+    
     setIsSubmitting(true);
     const loadingToast = toast.loading("Memperbarui status pesanan...");
+    
     try {
       await updateOrderStatus(id, newStatus, undefined, undefined, undefined, user?.name);
+      
+      // Update local state instantly for UI responsiveness
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
+      
       toast.dismiss(loadingToast);
       toast.success(`Status pesanan ${id} berhasil diperbarui.`);
     } catch (e) {
       toast.dismiss(loadingToast);
       toast.error("Gagal memperbarui status. Silakan coba lagi.");
     } finally {
-      setIsSubmitting(false);
+      // Small timeout ensures UI renders the locked state correctly before freeing the submit lock
+      setTimeout(() => setIsSubmitting(false), 300);
     }
   };
 
@@ -134,10 +142,10 @@ export default function CateringDashboard() {
       <div className="max-w-7xl mx-auto mb-10 border-b border-zinc-200 dark:border-zinc-800 pb-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
            <h1 className="text-4xl font-black flex items-center gap-3">
-             <ChefHat className="text-indigo-600 w-10 h-10" /> Kitchen Hub
+             <ChefHat className="text-indigo-600 w-10 h-10" /> {t('kitchen.title')}
            </h1>
            <div className="flex gap-4">
-              <button onClick={() => window.open('/catering/tv', '_blank')} className="px-6 py-3 bg-zinc-900 text-white dark:bg-white dark:text-black font-bold rounded-2xl shadow-lg hover:scale-105 transition-transform"><MonitorPlay className="w-5 h-5 inline mr-2" /> Open Monitor</button>
+              <button onClick={() => window.open('/catering/tv', '_blank')} className="px-6 py-3 bg-zinc-900 text-white dark:bg-white dark:text-black font-bold rounded-2xl shadow-lg hover:scale-105 transition-transform"><MonitorPlay className="w-5 h-5 inline mr-2" /> {t('kitchen.open_monitor')}</button>
            </div>
         </div>
 
@@ -155,7 +163,7 @@ export default function CateringDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
            <div className="relative">
              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-             <input type="text" placeholder="Order ID / Name / MRN..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-950 border-none rounded-2xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500" />
+             <input type="text" placeholder={t('common.search')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-950 border-none rounded-2xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500" />
            </div>
            <div className="flex gap-2 items-center bg-zinc-50 dark:bg-zinc-950 px-3 rounded-2xl border border-transparent focus-within:ring-2 focus-within:ring-indigo-500 lg:col-span-2">
               <Calendar className="w-4 h-4 text-zinc-400 shrink-0" />
@@ -170,7 +178,7 @@ export default function CateringDashboard() {
                 }}
                 className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black rounded-xl hover:bg-indigo-700 transition-colors shrink-0 shadow-lg shadow-indigo-600/20 active:scale-95"
               >
-                TODAY
+                {t('common.today')}
               </button>
            </div>
            <div className="relative">
@@ -192,8 +200,8 @@ export default function CateringDashboard() {
          {/* Layout divided into Active Boards (only if no historical date filter) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Board 1: New Ticket */}
-            <div className={`bg-zinc-100 dark:bg-zinc-900/50 rounded-[2.5rem] p-8 h-max ${(startDate || endDate) ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
-               <h3 className="text-xl font-black mb-8 text-zinc-400 flex justify-between">New Tickets <span>{filteredOrders.filter(o => o.status === 'created').length}</span></h3>
+            <div className={`bg-zinc-100 dark:bg-zinc-900/50 rounded-[2.5rem] p-8 h-max ${((startDate || endDate) && (startDate !== new Date().toISOString().split('T')[0] || endDate !== new Date().toISOString().split('T')[0])) ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
+               <h3 className="text-xl font-black mb-8 text-zinc-400 flex justify-between">{t('kitchen.new_tickets')} <span>{filteredOrders.filter(o => o.status === 'created').length}</span></h3>
                <div className="space-y-6">
                  {filteredOrders.filter(o => o.status === 'created').map(order => (
                    <div key={order.id} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl shadow-lg border border-zinc-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -204,14 +212,14 @@ export default function CateringDashboard() {
                       </div>
                       <div className="flex gap-2">
                         <button 
-                          disabled={isSubmitting || (order.orderType === 'doctor' && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date())}
+                          disabled={isSubmitting || (order.orderType === 'doctor' && order.expectedDate && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date())}
                           onClick={() => updateStatus(order.id, 'preparing')} 
                           className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-indigo-600/20 disabled:bg-zinc-300 disabled:shadow-none"
                         >
-                          {isSubmitting ? 'Memproses...' : (order.orderType === 'doctor' && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date() ? 'Locked (Besok)' : 'Mulai Masak')}
+                           {isSubmitting ? t('common.loading') : (order.orderType === 'doctor' && order.expectedDate && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date() ? t('kitchen.locked_tomorrow') : t('kitchen.start_cooking'))}
                         </button>
-                        <button onClick={() => handlePrint(order)} className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-xl">
-                           <Search className="w-4 h-4" />
+                        <button onClick={() => handlePrint(order)} className="p-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 rounded-xl hover:bg-zinc-200 transition-all">
+                           <Maximize2 className="w-4 h-4" />
                         </button>
                       </div>
                    </div>
@@ -220,8 +228,8 @@ export default function CateringDashboard() {
             </div>
 
             {/* Board 2: Cooking */}
-            <div className={`bg-amber-50/50 dark:bg-amber-900/10 rounded-[2.5rem] p-8 h-max ${(startDate || endDate) ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
-               <h3 className="text-xl font-black mb-8 text-amber-600/60 flex justify-between">Cooking <span>{filteredOrders.filter(o => o.status === 'preparing').length}</span></h3>
+            <div className={`bg-amber-50/50 dark:bg-amber-900/10 rounded-[2.5rem] p-8 h-max ${((startDate || endDate) && (startDate !== new Date().toISOString().split('T')[0] || endDate !== new Date().toISOString().split('T')[0])) ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
+               <h3 className="text-xl font-black mb-8 text-amber-600/60 flex justify-between">{t('kitchen.cooking')} <span>{filteredOrders.filter(o => o.status === 'preparing').length}</span></h3>
                <div className="space-y-6">
                  {filteredOrders.filter(o => o.status === 'preparing').map(order => (
                     <div key={order.id} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl shadow-lg border border-amber-100 dark:border-amber-900/20">
@@ -231,7 +239,7 @@ export default function CateringDashboard() {
                          {order.itemDetails.map((it: any, i: number) => <div key={i} className="flex justify-between text-xs"><span>{it.name}</span> <span className="font-bold">x{it.qty}</span></div>)}
                       </div>
                       <button disabled={isSubmitting} onClick={() => updateStatus(order.id, 'ready')} className="w-full py-3 bg-amber-500 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50">
-                        {isSubmitting ? 'Memproses...' : 'Pesanan Siap'}
+                        {isSubmitting ? t('common.loading') : t('kitchen.ready')}
                       </button>
                     </div>
                  ))}
@@ -240,7 +248,7 @@ export default function CateringDashboard() {
 
             {/* Board 3: History/Completed */}
             <div className="bg-emerald-50/50 dark:bg-emerald-900/10 rounded-[2.5rem] p-8 h-max min-h-[500px]">
-               <h3 className="text-xl font-black mb-8 text-emerald-600/60 flex justify-between">{(startDate || endDate) ? 'Historical Records' : 'Completed/History'} <span>{filteredOrders.filter(o => ['ready', 'delivering', 'delivered', 'cancelled', 'pending-approval'].includes(o.status)).length}</span></h3>
+               <h3 className="text-xl font-black mb-8 text-emerald-600/60 flex justify-between">{(startDate || endDate) ? 'Historical Records' : t('kitchen.history')} <span>{filteredOrders.filter(o => ['ready', 'delivering', 'delivered', 'cancelled', 'pending-approval'].includes(o.status)).length}</span></h3>
                <div className="space-y-6">
                  {filteredOrders.filter(o => ['ready', 'delivering', 'delivered', 'cancelled', 'pending-approval'].includes(o.status)).map(order => (
                     <div key={order.id} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl border border-emerald-100 dark:border-emerald-900/10 opacity-90">

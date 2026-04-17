@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import { ShoppingCart, Utensils, Stethoscope, MapPin, ShieldAlert, Star, Search, Minus, Plus, ShoppingBag, ArrowRight, X, Info } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { getMenus, createOrder, validateCoupon, getMenuReviews } from "@/app/actions";
+import { getMenus, createOrder, validateCoupon, getMenuReviews, getLocations } from "@/app/actions";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Suspense } from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 function OrderContent() {
+  const { t, language } = useLanguage();
   const { user, cart, addToCart, removeFromCart, updateQty, clearCart } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -42,13 +44,7 @@ function OrderContent() {
   const [appliedCoupon, setAppliedCoupon] = useState("");
   const [couponData, setCouponData] = useState<any>(null);
 
-
-  const floorLocations: Record<string, string[]> = {
-    "Lantai 1": ["IGD", "Poliklinik Lantai 1"],
-    "Lantai 2": ["OK", "VK", "Intensif", "Rawat Inap Kamala Lantai 2"],
-    "Lantai 3": ["Rawat Inap Kamala Lantai 3"],
-    "Lantai 4": ["Rawat Inap Padma Lantai 4", "Poliklinik Lantai 4", "Fisioterapi", "Klinik Tumbuh Kembang"]
-  };
+  const [floorLocations, setFloorLocations] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     setMounted(true);
@@ -66,12 +62,22 @@ function OrderContent() {
     try {
       const items = await getMenus();
       setMenuItems(items);
+      
+      const locData = await getLocations();
+      const grouped: Record<string, string[]> = {};
+      locData.forEach((l: any) => {
+        if (!grouped[l.floor]) grouped[l.floor] = [];
+        grouped[l.floor].push(l.name);
+      });
+      setFloorLocations(grouped);
     } catch (e) {
-      toast.error("Failed to load menu");
+      toast.error(t('common.error'));
     } finally {
       setLoading(false);
     }
   };
+
+  const displayLocations = floorLocations;
 
   // Staff should not be here
   const isStaff = user && ['cashier', 'catering', 'waiter'].includes(user.role as string);
@@ -256,44 +262,53 @@ function OrderContent() {
     <div className="min-h-screen bg-zinc-50 dark:bg-[#0a0a0a] text-zinc-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-300">
       {/* Header Section */}
       <header className="px-6 py-10 max-w-7xl mx-auto w-full">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
-          <div>
-            <h1 className="text-5xl font-black mb-2 tracking-tight bg-gradient-to-r from-zinc-900 dark:from-white to-zinc-500 bg-clip-text text-transparent">Hospital Menu</h1>
-            <p className="text-zinc-500 font-medium italic">Order fresh meals. Safe to consume for patients.</p>
-          </div>
-          
-          {user.role === 'admin' && (
-            <div className="flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-1.5 rounded-2xl gap-2 shadow-xl">
-               <button onClick={() => setAdminOrderType("customer")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'customer' ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-emerald-400 shadow-md ring-1 ring-zinc-200 dark:ring-0' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>Orderan Customer (Umum)</button>
-               <button onClick={() => setAdminOrderType("doctor")} className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${adminOrderType === 'doctor' ? 'bg-white dark:bg-zinc-800 text-rose-600 dark:text-rose-500 shadow-md ring-1 ring-zinc-200 dark:ring-0' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'}`}>Orderan Khusus Dokter</button>
+         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-10 mb-16">
+            <div className="flex-1">
+               <h1 className="text-7xl font-black mb-6 tracking-tighter text-indigo-900 dark:text-indigo-100 leading-none">
+                  {t('order.title')}
+               </h1>
+               <p className="text-zinc-600 dark:text-zinc-400 text-2xl font-medium max-w-2xl leading-relaxed">
+                  {t('order.subtitle')}
+               </p>
             </div>
-          )}
-        </div>
+            
+            {user.role === 'admin' && (
+              <div className="flex bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-2 rounded-3xl gap-2 shadow-2xl shrink-0">
+                 <button onClick={() => setAdminOrderType("customer")} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${adminOrderType === 'customer' ? 'bg-white dark:bg-zinc-800 text-indigo-600 shadow-xl' : 'text-zinc-500'}`}>{language === 'id' ? 'Order Umum' : 'Customer Order'}</button>
+                 <button onClick={() => setAdminOrderType("doctor")} className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${adminOrderType === 'doctor' ? 'bg-white dark:bg-zinc-800 text-rose-600 shadow-xl' : 'text-zinc-500'}`}>{language === 'id' ? 'Order Dokter' : 'Doctor Order'}</button>
+              </div>
+            )}
+         </div>
 
-        {/* Categories & Search */}
-        <div className="flex flex-col lg:flex-row gap-6 items-center">
-          <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar flex-1 w-full">
-            {categories.map(cat => (
-              <button 
-                key={cat} 
-                onClick={() => setCurrentCategory(cat)}
-                className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${currentCategory === cat ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-800 dark:bg-zinc-900 text-white dark:text-zinc-500 border border-zinc-700 dark:border-zinc-800 hover:bg-zinc-700'}`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          <div className="relative w-full lg:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-            <input 
-              type="text" 
-              placeholder="Search food..." 
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl py-4 pl-12 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all placeholder:text-zinc-400 dark:placeholder:text-zinc-600 shadow-sm"
-            />
-          </div>
-        </div>
+         {/* Categories & Search */}
+         <div className="flex flex-col lg:flex-row gap-8 items-center bg-white dark:bg-zinc-900/50 p-6 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-xl">
+            <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar flex-1 w-full scale-90 origin-left">
+               {[
+                 { id: 'all', label: t('order.all'), icon: Utensils },
+                 { id: 'makanan', label: t('order.food'), icon: ShoppingBag },
+                 { id: 'minuman', label: t('order.drinks'), icon: ShoppingBag },
+                 { id: 'snack', label: t('order.snacks'), icon: ShoppingBag }
+               ].map((cat) => (
+                  <button 
+                    key={cat.id} 
+                    onClick={() => setCurrentCategory(cat.id)}
+                    className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap flex items-center gap-3 ${currentCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100'}`}
+                  >
+                    <cat.icon className="w-4 h-4" /> {cat.label}
+                  </button>
+               ))}
+            </div>
+            <div className="relative w-full lg:w-[450px]">
+               <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-400" />
+               <input 
+                 type="text" 
+                 placeholder={t('common.search')}
+                 value={searchQuery}
+                 onChange={e => setSearchQuery(e.target.value)}
+                 className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-[2rem] py-5 pl-16 pr-8 text-xl font-bold text-zinc-900 dark:text-zinc-100 focus:ring-4 focus:ring-indigo-500/20 shadow-inner transition-all"
+               />
+            </div>
+         </div>
       </header>
 
       {/* Grid Menu */}
@@ -367,24 +382,22 @@ function OrderContent() {
                        <h2 className="text-4xl font-black leading-tight text-white mb-2">{selectedItem.name}</h2>
                        <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1.5 text-amber-400">
-                            <Star className="w-4 h-4 fill-current" />
-                            <span className="text-sm font-black">{selectedItem.rating?.toFixed(1) || "0.0"} ({selectedItem.reviews || 0} Ulasan)</span>
+                             <Star className="w-4 h-4 fill-current" />
+                             <span className="text-sm font-black">{selectedItem.rating?.toFixed(1) || "0.0"} ({selectedItem.reviews || 0} {language === 'id' ? 'Ulasan' : 'Reviews'})</span>
                           </div>
                           <button 
                             onClick={() => router.push(`/ulasan/${selectedItem.id}`)}
                             className="text-[10px] font-black uppercase text-indigo-500 hover:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors"
                           >
-                            Lihat Ulasan
+                            {language === 'id' ? 'Lihat Ulasan' : 'View Reviews'}
                             <ArrowRight className={`w-3 h-3`} />
                           </button>
                        </div>
                     </div>
+
                     <button onClick={() => setSelectedItem(null)} className="hidden md:block p-2 hover:bg-zinc-800 rounded-full text-zinc-500 transition-colors"><X className="w-8 h-8" /></button>
                  </div>
 
-
-
-                 
                  <p className="text-zinc-500 dark:text-zinc-400 text-lg leading-relaxed mb-6">{selectedItem.description}</p>
 
                   {selectedItem.nutrition && (() => {
@@ -394,8 +407,8 @@ function OrderContent() {
                      return (
                         <div className="mb-10 flex-shrink-0 bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-sm">
                            <div className="bg-zinc-100 dark:bg-zinc-800/50 px-6 py-3 border-b border-zinc-200 dark:border-zinc-800 flex justify-between">
-                              <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Nutrisi</h4>
-                              <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">Jumlah</h4>
+                              <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">{language === 'id' ? 'Nutrisi' : 'Nutrition'}</h4>
+                              <h4 className="text-[10px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-[0.2em]">{language === 'id' ? 'Jumlah' : 'Amount'}</h4>
                            </div>
                            <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
                               <table className="w-full">
@@ -416,7 +429,7 @@ function OrderContent() {
 
                  <div className="mt-auto space-y-8">
                     <div className="flex justify-between items-end">
-                       <p className="text-zinc-500 font-black uppercase text-xs tracking-widest mb-1">Total Harga</p>
+                       <p className="text-zinc-500 font-black uppercase text-xs tracking-widest mb-1">{t('order.total')}</p>
                        <p className={`font-black text-indigo-500 transition-all duration-300 ${isDoctor ? "text-4xl" : displayPrice(selectedItem.price).toLocaleString('id-ID').length > 8 ? "text-3xl" : "text-5xl"}`}>
                          {isDoctor ? "FREE" : `Rp ${displayPrice(selectedItem.price).toLocaleString('id-ID')}`}
                        </p>
@@ -425,11 +438,11 @@ function OrderContent() {
                     <div className="flex gap-4">
                        <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-3xl p-2 h-20 shadow-inner flex-1">
                           <button onClick={() => updateQtyWithFix(selectedItem, -1)} className="w-16 h-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-2xl transition-all">
-                            <Minus className="w-6 h-6" />
+                                  <Minus className="w-6 h-6" />
                           </button>
                           <span className="text-2xl font-black text-white w-12 text-center">{getItemQty(selectedItem.id)}</span>
                           <button onClick={() => updateQtyWithFix(selectedItem, 1)} className="w-16 h-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-2xl transition-all">
-                            <Plus className="w-6 h-6" />
+                                  <Plus className="w-5 h-5" />
                           </button>
                        </div>
                        <button 
@@ -439,7 +452,7 @@ function OrderContent() {
                          }} 
                          className="flex-[1.5] bg-white text-zinc-950 rounded-3xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl shadow-white/10"
                        >
-                          Add to Box
+                          {t('order.add_to_cart')}
                        </button>
                     </div>
                  </div>
@@ -457,12 +470,12 @@ function OrderContent() {
                   <ShoppingBag className="w-6 h-6" />
                </div>
                <div className="text-left">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Order Summary</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{t('checkout.summary')}</p>
                   <p className="text-xl font-black">{totalItems} Item • Rp {cartTotal.toLocaleString('id-ID')}</p>
                </div>
             </div>
             <div className="bg-zinc-100 p-4 rounded-2xl px-8 flex items-center gap-3 font-black uppercase text-xs transition-colors hover:bg-zinc-200">
-               Proceed <ArrowRight className="w-5 h-5" />
+               {language === 'id' ? 'Lanjut' : 'Proceed'} <ArrowRight className="w-5 h-5" />
             </div>
           </button>
         </div>
@@ -474,7 +487,7 @@ function OrderContent() {
            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-5 duration-300">
               <div className="p-8 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-950/50">
                  <h2 className="text-3xl font-black flex items-center gap-3">
-                    <MapPin className="text-rose-500" /> Delivery Details
+                    <MapPin className="text-rose-500" /> {t('checkout.delivery_info')}
                  </h2>
                  <button onClick={() => setShowCheckout(false)} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"><X className="w-6 h-6" /></button>
               </div>
@@ -483,41 +496,41 @@ function OrderContent() {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {!isDoctor && (
                        <div className="md:col-span-2">
-                          <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Medical Record No (MRN)</label>
+                          <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">{t('checkout.mrn_placeholder')}</label>
                           <input type="text" placeholder="ID Pasien..." value={mrn} onChange={e => setMrn(e.target.value)} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-700" />
                        </div>
                     )}
                     <div>
-                       <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Lantai</label>
+                       <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">{t('checkout.floor')}</label>
                        <select value={floor} onChange={e => { setFloor(e.target.value); setLocation(""); }} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold appearance-none cursor-pointer">
-                          <option value="">Pilih Lantai</option>
-                          {Object.keys(floorLocations).map(f => (
+                          <option value="">{t('checkout.floor')}</option>
+                          {Object.keys(displayLocations).map(f => (
                              <option key={f} value={f}>{f}</option>
                           ))}
                        </select>
                     </div>
                     <div>
-                       <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Lokasi / Unit</label>
+                       <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">{t('checkout.location')}</label>
                        <select value={location} onChange={e => setLocation(e.target.value)} disabled={!floor} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
-                          <option value="">Pilih Lokasi</option>
-                          {floor && floorLocations[floor]?.map(loc => (
+                          <option value="">{t('checkout.location')}</option>
+                          {floor && displayLocations[floor]?.map(loc => (
                              <option key={loc} value={loc}>{loc}</option>
                           ))}
                        </select>
                     </div>
                     <div className="md:col-span-2">
-                        <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Nomor Kamar</label>
-                        <input type="text" placeholder="Contoh: 301, ICU-1..." value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-700" />
+                         <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">{t('checkout.room_placeholder')}</label>
+                         <input type="text" placeholder={t('checkout.room_placeholder')} value={roomNumber} onChange={e => setRoomNumber(e.target.value)} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-700" />
                      </div>
                     <div className="md:col-span-2">
-                       <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">Catatan Tambahan</label>
-                       <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Alergi atau instruksi khusus..." rows={3} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none resize-none text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-700"></textarea>
+                       <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">{t('checkout.note')}</label>
+                       <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder={t('checkout.note')} rows={3} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none resize-none text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-700"></textarea>
                     </div>
                  </div>
 
                  {!isDoctor && (
                    <div className="space-y-3">
-                      <label className="block text-xs font-black text-zinc-500 uppercase tracking-widest">Kupon Promo</label>
+                      <label className="block text-xs font-black text-zinc-500 uppercase tracking-widest">{t('checkout.coupon')}</label>
                       <div className="flex gap-3">
                          <input 
                            type="text" 
@@ -530,7 +543,7 @@ function OrderContent() {
                            onClick={applyCoupon}
                            className="px-6 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 transition-colors"
                          >
-                            Apply
+                            {t('checkout.apply')}
                          </button>
                       </div>
                       {appliedCoupon && (
@@ -545,8 +558,8 @@ function OrderContent() {
                  {isDoctor && (
                    <div className="flex items-center justify-between p-6 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-3xl">
                       <div>
-                         <p className="font-black text-sm">Jadwalkan Besok (H+1)</p>
-                         <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Pre-order untuk tindakan besok</p>
+                         <p className="font-black text-sm">{t('checkout.advance')}</p>
+                         <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">{language === 'id' ? 'Pesan untuk jadwal besok' : 'Pre-order for tomorrow menu'}</p>
                       </div>
                       <button onClick={() => setIsAdvance(!isAdvance)} className={`w-14 h-8 rounded-full relative transition-all duration-300 shadow-inner ${isAdvance ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-800'}`}>
                          <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-md ${isAdvance ? 'left-7' : 'left-1'}`}></div>
@@ -569,12 +582,12 @@ function OrderContent() {
                     )}
 
                     <div className="flex justify-between items-end pt-2">
-                       <span className="text-zinc-500 font-black uppercase text-xs tracking-widest">Total Bayar</span>
+                       <span className="text-zinc-500 font-black uppercase text-xs tracking-widest">{language === 'id' ? 'Total Bayar' : 'Grand Total'}</span>
                        <span className="text-4xl font-black text-indigo-500">Rp {cartTotal.toLocaleString('id-ID')}</span>
                     </div>
                  </div>
                  <button onClick={handleCheckout} className="w-full py-6 bg-white text-zinc-950 text-xl font-black rounded-3xl shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-4">
-                    {isDoctor ? "KONFIRMASI PESANAN DOKTER" : "LANJUT KE PEMBAYARAN"}
+                    {isDoctor ? (language === 'id' ? 'KONFIRMASI PESANAN DOKTER' : 'CONFIRM DOCTOR ORDER') : t('checkout.place_order')}
                     <ArrowRight className="w-6 h-6" />
                  </button>
               </div>

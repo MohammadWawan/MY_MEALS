@@ -5,9 +5,11 @@ import { ArrowRight, Activity, ShieldCheck, Clock } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/components/AuthProvider";
 import { useEffect, useState } from "react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 export default function Home() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -30,27 +32,27 @@ export default function Home() {
             </div>
             
             <h1 className="max-w-4xl font-black text-5xl tracking-tight text-zinc-900 sm:text-7xl dark:text-white mb-8">
-              Seamless Hospital <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-emerald-500">Catering & Orders</span>
+              {t('home.hero_title')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-emerald-500">{t('home.hero_highlight')}</span>
             </h1>
             
             <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-600 dark:text-zinc-400 mb-10 mx-auto lg:mx-0">
-              Advanced point-of-sale system built specifically for healthcare facilities. Manage operating room advance orders, real-time kitchen tracking, and QRIS payments in one unified platform.
+               {t('home.hero_desc')}
             </p>
             
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
                {mounted && user ? (
                   <Link href="/order" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 text-base font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg shadow-indigo-500/30 transition-all active:scale-95 group">
-                    Order Now
+                    {t('home.order_now')}
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                ) : (
                   <>
                      <Link href="/auth/login" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 text-base font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-lg shadow-indigo-500/30 transition-all active:scale-95 group">
-                       Login to Dashboard
+                       {t('home.login')}
                        <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                      </Link>
                      <Link href="/auth/register" className="flex items-center justify-center w-full sm:w-auto px-8 py-4 text-base font-bold text-zinc-900 dark:text-white bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-full transition-all active:scale-95">
-                       Create an Account
+                       {t('home.signup')}
                      </Link>
                   </>
                )}
@@ -76,24 +78,24 @@ export default function Home() {
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6 text-blue-600 dark:text-blue-400">
                  <Clock className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Advance Ordering</h3>
-              <p className="text-zinc-600 dark:text-zinc-400 text-sm">Schedule meals up to H-1 for operating rooms and specialized priority units.</p>
+              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">{t('home.feature1_title')}</h3>
+              <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('home.feature1_desc')}</p>
            </div>
            
            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800/50 shadow-xl backdrop-blur-sm">
               <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-6 text-emerald-600 dark:text-emerald-400">
                  <Activity className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Real-time Kitchen</h3>
-              <p className="text-zinc-600 dark:text-zinc-400 text-sm">TV Dashboard monitoring from received orders to dispatch state dynamically.</p>
+              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">{t('home.feature2_title')}</h3>
+              <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('home.feature2_desc')}</p>
            </div>
            
            <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900/50 border border-zinc-100 dark:border-zinc-800/50 shadow-xl backdrop-blur-sm">
               <div className="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-6 text-indigo-600 dark:text-indigo-400">
                  <ShieldCheck className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">Kemudahan Memesan</h3>
-              <p className="text-zinc-600 dark:text-zinc-400 text-sm">Kemudahan dalam memesan makanan dengan antarmuka yang ramah pengguna.</p>
+              <h3 className="text-xl font-bold mb-2 text-zinc-900 dark:text-zinc-100">{t('home.feature3_title')}</h3>
+              <p className="text-zinc-600 dark:text-zinc-400 text-sm">{t('home.feature3_desc')}</p>
 
            </div>
         </div>

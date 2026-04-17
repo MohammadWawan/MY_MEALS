@@ -143,3 +143,17 @@ export const coupons = sqliteTable("coupon", {
   createdAt: integer("createdAt", { mode: 'timestamp' }).notNull(),
 });
 
+export const locations = sqliteTable("location", {
+  id: text("id").primaryKey(),
+  floor: text("floor").notNull(),
+  name: text("name").notNull(),
+  createdAt: integer("createdAt", { mode: 'timestamp' }).notNull(),
+});
+
+export const doctorActions = sqliteTable("doctorAction", {
+  id: text("id").primaryKey(),
+  userId: integer("userId", { mode: 'number' }).notNull().references(() => users.id),
+  date: text("date").notNull(), // YYYY-MM-DD
+  count: integer("count").notNull().default(1),
+});
+

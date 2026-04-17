@@ -2,7 +2,28 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getPendingOrders } from "@/app/actions";
-import { Info, Volume2, User, Stethoscope, ChefHat, MapPin } from "lucide-react";
+import { Maximize2, Volume2, User, Stethoscope, ChefHat, MapPin, Clock } from "lucide-react";
+
+function LiveClock() {
+   const [time, setTime] = useState(new Date());
+
+   useEffect(() => {
+     const timer = setInterval(() => setTime(new Date()), 1000);
+     return () => clearInterval(timer);
+   }, []);
+
+   return (
+      <div className="flex flex-col items-end">
+         <div className="flex items-center gap-4">
+            <Clock className="w-10 h-10 text-indigo-500 animate-pulse" />
+            <h2 className="text-8xl font-mono font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(79,70,229,0.5)]">
+               {time.toLocaleTimeString('id-ID', { hour12: false })}
+            </h2>
+         </div>
+         <p className="text-zinc-500 mt-2 font-black tracking-[0.3em] uppercase">RS HERMINA PASURUAN</p>
+      </div>
+   );
+}
 
 export default function TVMonitor() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -11,11 +32,8 @@ export default function TVMonitor() {
 
   const playNotification = useCallback(() => {
      try {
-       // 1. Coba putar file MP3 kustom dari folder public
        const audio = new Audio("/panggilan.mp3");
        audio.play().catch(e => {
-          // 2. Jika file MP3 tidak ditemukan atau diblokir browser, 
-          // gunakan Fallback ke Web Speech API (Gadis Indonesia)
           console.log("MP3 fallback to TTS Voice...");
           const msg = new SpeechSynthesisUtterance("PERHATIAN ADA PESANAN BARU. HARAP DISIAPKAN.");
           msg.lang = 'id-ID';
@@ -23,13 +41,10 @@ export default function TVMonitor() {
           msg.rate = 1.0;
           
           const voices = window.speechSynthesis.getVoices();
-          // Cari suara perempuan Indonesia (Gadis, Google, etc)
           const femaleIndo = voices.find(v => v.lang.startsWith('id') && (v.name.toLowerCase().includes('female') || v.name.includes('Gadis') || v.name.includes('Google'))) 
                           || voices.find(v => v.lang.startsWith('id'));
           
-          if (femaleIndo) {
-             msg.voice = femaleIndo;
-          }
+          if (femaleIndo) msg.voice = femaleIndo;
           window.speechSynthesis.speak(msg);
        });
      } catch (e) {
@@ -38,32 +53,33 @@ export default function TVMonitor() {
   }, []);
 
   const fetchOrders = useCallback(async () => {
-    const data = await getPendingOrders();
-    const mapped = data.map(o => ({
-      id: o.id,
-      customerName: o.user?.name || 'Unknown',
-      orderDate: o.orderDate,
-      status: o.status,
-      orderType: o.orderType,
-      floor: o.floor,
-      location: o.location,
-      roomNumber: o.roomNumber,
-      description: o.description,
-      items: o.orderItems.map((oi: any) => `${oi.quantity}x ${oi.productName}`).join(", ")
-    }));
-    
-    setOrders(mapped);
-    
-    // Voice notification for NEW orders
-    const newCount = mapped.filter(o => o.status === 'created').length;
-    if (newCount > prevCountRef.current && interacted) {
-       playNotification();
+    try {
+      const data = await getPendingOrders();
+      const mapped = data.map(o => ({
+        id: o.id,
+        customerName: o.user?.name || 'Unknown',
+        orderDate: o.orderDate,
+        status: o.status,
+        orderType: o.orderType,
+        floor: o.floor,
+        location: o.location,
+        roomNumber: o.roomNumber,
+        description: o.description,
+        items: (o.orderItems || []).map((oi: any) => `${oi.quantity}x ${oi.productName}`).join(", ")
+      }));
+      setOrders(mapped);
+      
+      const newCount = mapped.filter(o => o.status === 'created').length;
+      if (newCount > prevCountRef.current && interacted) {
+         playNotification();
+      }
+      prevCountRef.current = newCount;
+    } catch (e) {
+      console.error("fetchOrders error", e);
     }
-    prevCountRef.current = newCount;
   }, [interacted, playNotification]);
 
   useEffect(() => {
-     // Prime voices on mount for better browser support
      if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.getVoices();
         const handleVoices = () => window.speechSynthesis.getVoices();
@@ -103,19 +119,16 @@ export default function TVMonitor() {
 
   return (
     <div className="min-h-screen bg-zinc-950 p-10 flex flex-col">
-      <header className="flex justify-between items-center mb-10 pb-10 border-b border-zinc-800">
+      <header className="flex justify-between items-start mb-10 pb-10 border-b border-zinc-800">
          <div>
-            <h1 className="text-6xl font-black text-white flex items-center gap-6">
-              <ChefHat className="w-20 h-20 text-indigo-500" /> MEAL TRACKER BOARD
+            <h1 className="text-7xl font-black text-white flex items-center gap-6 tracking-tighter">
+              <Maximize2 className="w-16 h-16 text-indigo-500" /> MEAL TRACKER BOARD
             </h1>
-            <p className="text-zinc-500 mt-2 text-xl font-bold uppercase tracking-widest flex items-center gap-2">
+            <p className="text-zinc-500 mt-4 text-xl font-black uppercase tracking-[0.3em] flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span> SYSTEM ONLINE • REAL-TIME SYNC
             </p>
          </div>
-         <div className="text-right">
-            <h2 className="text-4xl font-mono font-black text-indigo-500">{new Date().toLocaleTimeString('id-ID')}</h2>
-            <p className="text-zinc-500 mt-1 font-bold">RS HERMINA PASURUAN</p>
-         </div>
+         <LiveClock />
       </header>
 
       <div className="flex-1 overflow-hidden">

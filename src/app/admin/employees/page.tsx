@@ -3,9 +3,10 @@
 import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { getStaffAndCustomers, updateEmployee, deleteEmployee } from "@/app/actions";
-import { Search, Edit2, Save, UserX, Camera, UserSquare2, XCircle, PlusCircle } from "lucide-react";
+import { getStaffAndCustomers, updateEmployee, deleteEmployee, bulkAddUsers } from "@/app/actions";
+import { Search, Edit2, Save, UserX, Camera, UserSquare2, XCircle, PlusCircle, Download, FileJson } from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from 'xlsx';
 
 export default function AdminEmployeeManager() {
   const { user } = useAuth();
@@ -13,6 +14,7 @@ export default function AdminEmployeeManager() {
   
   const [employees, setEmployees] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
   
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
@@ -22,6 +24,63 @@ export default function AdminEmployeeManager() {
   const fetchEmployees = async () => {
      const data = await getStaffAndCustomers();
      setEmployees(data);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const toastId = toast.loading("Mempersiapkan data staff...");
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const bstr = event.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        if (data.length === 0) {
+          toast.error("File kosong!", { id: toastId });
+          return;
+        }
+
+        const formatted = data.map((item: any) => ({
+          name: String(item.Nama || item.name || ""),
+          employeeId: String(item.No_Pegawai || item.employeeId || ""),
+          email: String(item.Email || item.email || ""),
+          role: String(item.Role || item.role || "waiter").toLowerCase()
+        })).filter(i => i.name && i.email);
+
+        if (formatted.length === 0) {
+          toast.error("Format kolom tidak sesuai. Gunakan template!", { id: toastId });
+          return;
+        }
+
+        const res = await bulkAddUsers(formatted);
+        toast.success(`Berhasil mengimpor ${res.count} staff!`, { id: toastId });
+        fetchEmployees();
+      } catch (err) {
+        toast.error("Gagal memproses file excel", { id: toastId });
+      } finally {
+        setIsImporting(false);
+        e.target.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const downloadTemplate = () => {
+    const ws = XLSX.utils.json_to_sheet([
+      { Nama: "Budi Kasir", No_Pegawai: "EMP001", Email: "budi@hermina.com", Role: "cashier" },
+      { Nama: "Siti Catering", No_Pegawai: "EMP002", Email: "siti@hermina.com", Role: "catering" },
+      { Nama: "Agus Waiter", No_Pegawai: "EMP003", Email: "agus@hermina.com", Role: "waiter" }
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template_Staff");
+    XLSX.writeFile(wb, "Template_Staff_MyMeals.xlsx");
   };
 
   useEffect(() => {
@@ -111,6 +170,15 @@ export default function AdminEmployeeManager() {
                    <UserSquare2 className="w-10 h-10 text-indigo-500" /> Manage Staff
                 </h1>
                 <p className="text-zinc-600 dark:text-zinc-400 text-lg">Promote customers to staff or edit employee data.</p>
+                <div className="flex gap-2 mt-4">
+                   <button onClick={downloadTemplate} className="p-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 rounded-2xl hover:bg-zinc-200 transition-all flex items-center gap-2 text-[10px] font-bold shadow-sm uppercase tracking-wider">
+                      <Download className="w-3 h-3" /> Template
+                   </button>
+                   <label className="cursor-pointer p-3 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 rounded-2xl flex items-center gap-2 text-[10px] font-bold hover:bg-indigo-100 transition-all uppercase tracking-wider">
+                      <FileJson className="w-3 h-3" /> Import Excel
+                      <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleImport} disabled={isImporting} />
+                   </label>
+                </div>
              </div>
              
              <div className="w-full md:w-[450px] relative">

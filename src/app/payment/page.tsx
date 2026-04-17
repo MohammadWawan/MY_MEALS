@@ -5,11 +5,13 @@ import { useAuth } from "@/components/AuthProvider";
 import { useRouter } from "next/navigation";
 import { createOrder, validateCoupon, updateOrderStatus } from "@/app/actions";
 import { QrCode, CreditCard, Banknote } from "lucide-react";
+import { useLanguage } from "@/components/LanguageProvider";
 
 import { toast } from "sonner";
 
 export default function PaymentPage() {
   const { cart, clearCart, user } = useAuth();
+  const { t, language } = useLanguage();
   const router = useRouter();
   const [method, setMethod] = useState("");
   const [showPopup, setShowPopup] = useState(false);
@@ -99,7 +101,7 @@ export default function PaymentPage() {
     }
 
     setIsSubmitting(true);
-    const loadingToast = toast.loading("Sedang mengirim pesanan...");
+    const loadingToast = toast.loading(t('payment.submitting'));
 
     try {
       let base64String = "";
@@ -156,11 +158,11 @@ export default function PaymentPage() {
 
       if (method === 'tunai') {
          clearCart();
-         toast.success("Pesanan Diterima! Silakan lihat kode pembayaran.");
+         toast.success(language === 'id' ? "Pesanan Diterima! Silakan lihat kode pembayaran." : "Order Received! Please view payment code.");
          setIsSubmitting(false);
          router.push(`/payment/qr/${result.orderId}`);
       } else {
-         toast.success("Pesanan Terkirim! \nBukti pembayaran Anda sedang divalidasi oleh kasir.", {
+         toast.success(language === 'id' ? "Pesanan Terkirim! \nBukti pembayaran Anda sedang divalidasi oleh kasir." : "Order Sent! \nYour payment proof is being validated by the cashier.", {
             duration: 5000
          });
          setShowPopup(false);
@@ -178,9 +180,9 @@ export default function PaymentPage() {
   if (cart.length === 0) {
      return (
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] text-center p-6 bg-slate-50 dark:bg-zinc-950">
-           <h2 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">Your cart is empty</h2>
+           <h2 className="text-2xl font-bold mb-4 text-zinc-900 dark:text-zinc-100">{t('order.empty_cart')}</h2>
            <button onClick={() => router.push('/order')} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-xl cursor-pointer">
-              Go to Menu
+              {language === 'id' ? 'Buka Menu' : 'Go to Menu'}
            </button>
         </div>
      );
@@ -189,10 +191,10 @@ export default function PaymentPage() {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-slate-50 text-slate-900 flex flex-col items-center justify-center p-6 dark:bg-zinc-950 dark:text-slate-50">
       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-8 rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden transition-colors">
-        <h1 className="text-3xl font-black mb-6 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Complete Your Payment</h1>
+        <h1 className="text-3xl font-black mb-6 text-center bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{t('payment.title')}</h1>
         
         <div className="bg-slate-50 dark:bg-zinc-800/50 p-6 rounded-2xl border border-slate-100 dark:border-zinc-800 mb-8 transition-colors">
-           <h3 className="font-bold text-lg mb-4 text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-700 pb-2">Order Summary</h3>
+           <h3 className="font-bold text-lg mb-4 text-zinc-800 dark:text-zinc-200 border-b border-zinc-200 dark:border-zinc-700 pb-2">{t('payment.summary')}</h3>
            {cart.map(item => (
               <div key={item.id} className="flex justify-between text-sm mb-2 font-medium">
                  <span className="text-zinc-600 dark:text-zinc-400">{item.qty}x {item.name}</span>
@@ -222,7 +224,7 @@ export default function PaymentPage() {
             )}
 
            <div className="flex justify-between font-black text-xl mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
-               <span>Total Bayar</span>
+               <span>{language === 'id' ? 'Total Bayar' : 'Grand Total'}</span>
                <span className="text-indigo-600 dark:text-indigo-400">Rp {cartTotal.toLocaleString()}</span>
            </div>
 
@@ -230,12 +232,12 @@ export default function PaymentPage() {
              onClick={() => router.push('/order?checkout=true')}
              className="w-full mt-6 py-3 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl text-xs font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 hover:border-zinc-400 dark:hover:border-zinc-500 transition-all flex items-center justify-center gap-2"
            >
-             ← Kembali ke Edit Pesanan / Alamat
+             ← {t('payment.back')}
            </button>
 
         </div>
 
-        <h3 className="font-bold text-center mb-4 text-zinc-600 dark:text-zinc-400">Select Payment Method</h3>
+        <h3 className="font-bold text-center mb-4 text-zinc-600 dark:text-zinc-400">{t('payment.select_method')}</h3>
         <div className="grid grid-cols-3 gap-4 mb-4">
           <button 
             onClick={() => {setMethod('qris'); setShowPopup(true);}} 
@@ -266,7 +268,7 @@ export default function PaymentPage() {
           <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-2xl w-full max-w-md relative animate-in fade-in zoom-in duration-300 border border-zinc-200 dark:border-zinc-700">
             <button onClick={() => setShowPopup(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold p-2 text-xl">&times;</button>
             <h2 className="text-2xl font-bold mb-6 text-center mt-4">
-              {method === 'qris' ? 'Scan QRIS to Pay' : method === 'transfer' ? 'Bank Transfer Details' : 'Pembayaran Tunai di Kasir'}
+              {method === 'qris' ? t('payment.qris') : method === 'transfer' ? t('payment.transfer_details') : t('payment.cash_details')}
             </h2>
             
             <>
@@ -300,7 +302,7 @@ export default function PaymentPage() {
                   ) : (
                     <div className="text-center p-6 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-900/30">
                        <Banknote className="w-12 h-12 text-amber-500 mx-auto mb-3" />
-                       <p className="text-xs text-amber-700 dark:text-amber-500 font-medium">Pembayaran Tunai dilakukan dengan menyerahkan uang tunai langsung ke kasir rumah sakit. Setelah memilih opsi ini, Anda akan mendapatkan QR Code untuk ditunjukkan kepada kasir.</p>
+                       <p className="text-xs text-amber-700 dark:text-amber-500 font-medium">{language === 'id' ? 'Pembayaran Tunai dilakukan dengan menyerahkan uang tunai langsung ke kasir rumah sakit. Setelah memilih opsi ini, Anda akan mendapatkan QR Code untuk ditunjukkan kepada kasir.' : 'Cash payments are made by handing over cash directly to the hospital cashier. After selecting this option, you will get a QR Code to show to the cashier.'}</p>
                     </div>
                   )}
                 </div>
@@ -308,7 +310,7 @@ export default function PaymentPage() {
                 <form onSubmit={handleUpload} className="space-y-4 border-t border-slate-200 dark:border-zinc-800 pt-6">
                   {method !== 'tunai' && (
                     <>
-                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Upload Transaction Receipt</label>
+                      <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">{t('payment.upload_receipt')}</label>
                       <input 
                         type="file" 
                         accept=".jpg,.jpeg,.png"
@@ -342,7 +344,7 @@ export default function PaymentPage() {
                     </>
                   )}
                   <button type="submit" disabled={isSubmitting} className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl mt-4 active:scale-95 transition-all outline-none disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isSubmitting ? "Processing..." : method === 'tunai' ? "Lanjut Transaksi" : "Submit Receipt"}
+                    {isSubmitting ? t('checkout.processing') : method === 'tunai' ? t('payment.continue_cash') : t('payment.submit')}
                   </button>
                 </form>
             </>

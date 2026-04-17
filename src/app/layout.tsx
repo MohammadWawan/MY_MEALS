@@ -7,6 +7,8 @@ import Navigation from "@/components/Navigation";
 import RouteGuard from "@/components/RouteGuard";
 import { Toaster } from 'sonner';
 
+import { LanguageProvider } from "@/components/LanguageProvider";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -23,13 +25,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} transition-colors duration-300`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AuthProvider>
-            <RouteGuard>
-              <Navigation />
-              {children}
-            </RouteGuard>
-            <Toaster position="top-center" richColors />
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <RouteGuard>
+                <Navigation />
+                {children}
+              </RouteGuard>
+              <Toaster position="top-center" richColors />
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>
