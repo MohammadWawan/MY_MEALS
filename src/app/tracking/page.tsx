@@ -229,7 +229,7 @@ export default function TrackingPage() {
                       </div>
                    )}
 
-                    {currentOrder.status !== 'cancelled' && currentOrder.status !== 'delivered' && currentOrder.status !== 'pending-approval' && (
+                    {currentOrder.status === 'received' && (
                        <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
                            <button 
                               onClick={() => setShowCancelPopup(true)} 

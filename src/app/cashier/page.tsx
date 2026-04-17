@@ -22,7 +22,9 @@ export default function CashierDashboard() {
   const router = useRouter();
   const lastOrderCountRef = useRef(0);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [clickedText, setClickedText] = useState<{ title: string, content: string } | null>(null);
   const initializedRef = useRef(false);
+  const knownOrderIdsRef = useRef<Set<string>>(new Set());
 
   const loadOrders = useCallback(async () => {
     try {
@@ -69,19 +71,28 @@ export default function CashierDashboard() {
   }, [loadOrders]);
 
   useEffect(() => {
-    // Exclude 'tunai' from pending notifications since they must be scanned first
-    const pendingCount = orders.filter(o => o.status === 'received' && o.paymentMethod !== 'tunai' && o.paymentMethod !== 'cash').length;
+    // Collect received order IDs
+    const receivedOrders = orders.filter(o => o.status === 'received');
+    const receivedIds = new Set(receivedOrders.map(o => o.id));
     
-    // Only play sound if already initialized (prevents sound on first load)
-    if (initializedRef.current && pendingCount > lastOrderCountRef.current && audioEnabled) {
+    // Check if there are any NEW IDs that weren't in the known list
+    const hasNewOrder = receivedOrders.some(o => !knownOrderIdsRef.current.has(o.id));
+
+    // Only play sound if already initialized AND we have actually new orders
+    if (initializedRef.current && hasNewOrder && audioEnabled) {
        const audio = new Audio('/tingtung.mp3');
        audio.play().catch(e => {
           console.error("Audio play failed", e);
        });
     }
     
-    lastOrderCountRef.current = pendingCount;
-    if (orders.length > 0) initializedRef.current = true;
+    // Update known IDs
+    if (orders.length > 0) {
+      receivedOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
+      initializedRef.current = true;
+    }
+    
+    lastOrderCountRef.current = receivedOrders.length;
   }, [orders, audioEnabled]);
 
   // Strict Role Protection
@@ -282,18 +293,24 @@ export default function CashierDashboard() {
                    </div>
                    <div>
                       <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Nama Pemesan</p>
-                      <p className="font-black text-lg text-zinc-800 dark:text-zinc-100 uppercase truncate max-w-[180px]">{order.customerName}</p>
+                      <p 
+                        className="font-black text-lg text-zinc-800 dark:text-zinc-100 uppercase truncate max-w-[180px] cursor-help"
+                        onClick={() => setClickedText({ title: "Nama Pemesan", content: order.customerName })}
+                        title="Klik untuk lihat detail"
+                      >
+                        {order.customerName}
+                      </p>
                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                    {order.orderType !== 'doctor' && (
-                     <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                     <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 cursor-help" onClick={() => setClickedText({ title: "MRN", content: order.mrn || "—" })}>
                         <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Hash className="w-3 h-3" /> MRN</p>
                         <p className="font-black text-sm text-zinc-800 dark:text-zinc-100">{order.mrn || "—"}</p>
                      </div>
                    )}
-                    <div className={`${order.orderType === 'doctor' ? 'col-span-2' : 'col-span-1'} bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800`}>
+                    <div className={`${order.orderType === 'doctor' ? 'col-span-2' : 'col-span-1'} bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800 cursor-help`} onClick={() => setClickedText({ title: "Lokasi", content: `${order.floor} ${order.location || ""} ${order.roomNumber ? `(Kamar: ${order.roomNumber})` : ""}` })}>
                       <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-1 flex items-center gap-1"><MapPin className="w-3 h-3" /> Lokasi</p>
                       <p className="font-black text-xs text-zinc-800 dark:text-zinc-100 truncate">{order.floor} {order.location ? `– ${order.location}` : ''} {order.roomNumber ? `(Kamar: ${order.roomNumber})` : ''}</p>
                    </div>
@@ -331,9 +348,19 @@ export default function CashierDashboard() {
                     <button disabled={isSubmitting} onClick={() => handleCancelOrder(order)} className="p-5 bg-rose-50 dark:bg-rose-900/10 text-rose-500 rounded-3xl hover:bg-rose-100 transition-all disabled:opacity-50" title="Batalkan Pesanan">
                        <XCircle className="w-6 h-6" />
                     </button>
-                    <button disabled={isSubmitting} onClick={() => validatePayment(order.id)} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[1.5rem] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50">
-                       {isSubmitting ? "Memproses..." : "Verifikasi"}
-                    </button>
+                    {(order.paymentMethod === 'tunai' || order.paymentMethod === 'cash') ? (
+                       <button 
+                         disabled
+                         className="flex-1 py-5 bg-zinc-100 dark:bg-zinc-800 text-zinc-400 font-black rounded-[1.5rem] transition-all text-[10px] uppercase tracking-widest flex items-center justify-center gap-2"
+                         title="Metode tunai wajib scan QR"
+                       >
+                          <ScanLine className="w-4 h-4" /> Scan QR Required
+                       </button>
+                    ) : (
+                       <button disabled={isSubmitting} onClick={() => validatePayment(order.id)} className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[1.5rem] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all text-sm uppercase tracking-widest disabled:opacity-50">
+                          {isSubmitting ? "Memproses..." : "Verifikasi"}
+                       </button>
+                    )}
                   </>
                 ) : (
                  order.status !== 'cancelled' && (
@@ -552,6 +579,21 @@ export default function CashierDashboard() {
                     <p className="text-[7px] font-bold text-zinc-300">SYSTEM GENERATED INVOICE 2026</p>
                  </div>
               </div>
+           </div>
+        </div>
+      )}
+      {/* Text Detail Modal */}
+      {clickedText && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6" onClick={() => setClickedText(null)}>
+           <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl border border-zinc-200 dark:border-zinc-800 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500 mb-2">{clickedText.title}</p>
+              <h3 className="text-3xl font-black text-zinc-900 dark:text-white leading-tight break-words">{clickedText.content}</h3>
+              <button 
+                onClick={() => setClickedText(null)}
+                className="mt-10 w-full py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-bold rounded-2xl hover:bg-zinc-200 transition-colors"
+              >
+                Tutup
+              </button>
            </div>
         </div>
       )}
