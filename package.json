@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "xcopy /E /I /Y public .next\\standalone\\public && xcopy /E /I /Y .next\\static .next\\standalone\\.next\\static",
     "start": "node start.js",
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
@@ -37,8 +38,8 @@
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^10.1.0",
-    "eslint-config-next": "^16.2.1",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.3",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "typescript": "^5.4.5"
