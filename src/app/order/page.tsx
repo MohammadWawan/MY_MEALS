@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ShoppingCart, Utensils, Stethoscope, MapPin, ShieldAlert, Star, Search, Minus, Plus, ShoppingBag, ArrowRight, X, Info } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { getMenus, createOrder, validateCoupon, getMenuReviews, getLocations } from "@/app/actions";
