@@ -26,16 +26,15 @@ export default function PaymentPage() {
   // Cash payment states
   const [cashOrderId, setCashOrderId] = useState<string | null>(null);
 
-  const calculateDiscountValue = (coupon: any) => {
+  const calculateDiscountValue = useCallback((coupon: any) => {
     if (coupon.discountType === 'percentage') {
       return subtotal * (coupon.discountValue / 100);
     } else {
       return coupon.discountValue;
     }
-  };
+  }, [subtotal]);
 
   useEffect(() => {
-
     const params = new URLSearchParams(window.location.search);
     const code = params.get("coupon");
     if (code) {
@@ -49,7 +48,7 @@ export default function PaymentPage() {
         }
       });
     }
-  }, []);
+  }, [calculateDiscountValue]);
 
   const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();

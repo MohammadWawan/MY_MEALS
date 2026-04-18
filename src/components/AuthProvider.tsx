@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         pollingIntervalRef.current = null;
       }
     };
-  }, [user?.id]); // Only recreate if user ID changes (login/logout/switch)
+  }, [user, user?.id]); // Only recreate if user ID changes (login/logout/switch)
 
   const login = (newUser: User, rememberMe: boolean = false) => {
     setUser(newUser);

@@ -46,19 +46,7 @@ function OrderContent() {
 
   const [floorLocations, setFloorLocations] = useState<Record<string, string[]>>({});
 
-  useEffect(() => {
-    setMounted(true);
-    fetchMenu();
-    const interval = setInterval(fetchMenu, 5000);
-
-    const isCheckoutOpen = searchParams.get('checkout') === 'true';
-    if (isCheckoutOpen) setShowCheckout(true);
-
-    return () => clearInterval(interval);
-  }, []);
-
-
-  const fetchMenu = async () => {
+  const fetchMenu = useCallback(async () => {
     try {
       const items = await getMenus();
       setMenuItems(items);
@@ -75,7 +63,18 @@ function OrderContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
+
+  useEffect(() => {
+    setMounted(true);
+    fetchMenu();
+    const interval = setInterval(fetchMenu, 5000);
+
+    const isCheckoutOpen = searchParams.get('checkout') === 'true';
+    if (isCheckoutOpen) setShowCheckout(true);
+
+    return () => clearInterval(interval);
+  }, [fetchMenu, searchParams]);
 
   const displayLocations = floorLocations;
 
