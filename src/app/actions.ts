@@ -840,7 +840,7 @@ export async function sendBillEmail(orderId: string) {
 
 export async function getLocations() {
   return await db.query.locations.findMany({
-    orderBy: [desc(locations.createdAt)]
+    orderBy: [locations.floor]
   });
 }
 

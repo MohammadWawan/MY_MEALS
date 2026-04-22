@@ -24,6 +24,7 @@ export default function WaiterDashboard() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const knownReadyIdsRef = useRef<Set<string>>(new Set());
   const initializedRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -47,21 +48,36 @@ export default function WaiterDashboard() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
     fetchOrders();
     const interval = setInterval(fetchOrders, 6000);
 
-    // Auto-prime audio on first interaction
+    // Create audio instance
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/tingtung.mp3');
+      audioRef.current.load();
+    }
+
+    // Auto-prime audio on any interaction
     const primeAudio = () => {
-      const a = new Audio('/tingtung.mp3');
-      a.play().catch(() => {});
+      if (audioRef.current) {
+        audioRef.current.play().then(() => {
+          audioRef.current?.pause();
+          if (audioRef.current) audioRef.current.currentTime = 0;
+        }).catch(e => console.log("Prime failed", e));
+      }
       window.removeEventListener('click', primeAudio);
+      window.removeEventListener('keydown', primeAudio);
+      window.removeEventListener('touchstart', primeAudio);
     };
     window.addEventListener('click', primeAudio);
+    window.addEventListener('keydown', primeAudio);
+    window.addEventListener('touchstart', primeAudio);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('click', primeAudio);
+      window.removeEventListener('keydown', primeAudio);
+      window.removeEventListener('touchstart', primeAudio);
     };
   }, [fetchOrders]);
 
@@ -70,19 +86,20 @@ export default function WaiterDashboard() {
     const hasNewReady = readyOrders.some(o => !knownReadyIdsRef.current.has(o.id));
 
     if (initializedRef.current && hasNewReady && audioEnabled) {
-       const audio = new Audio('/tingtung.mp3');
-       audio.play().catch(e => {
-          if (e.name === 'NotAllowedError') {
-             setAudioEnabled(false);
-             toast.error("Audio diblokir. Aktifkan kembali.");
-          }
-       });
+       if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(e => {
+             if (e.name === 'NotAllowedError') {
+                setAudioEnabled(false);
+                toast.error("Audio diblokir. Aktifkan kembali.");
+             }
+          });
+       }
     }
 
-    if (orders.length > 0) {
-      readyOrders.forEach(o => knownReadyIdsRef.current.add(o.id));
-      initializedRef.current = true;
-    }
+    // Update known IDs
+    readyOrders.forEach(o => knownReadyIdsRef.current.add(o.id));
+    initializedRef.current = true;
     
     setLastReadyCount(readyOrders.length);
   }, [orders, audioEnabled]);

@@ -25,6 +25,7 @@ export default function CashierDashboard() {
   const [clickedText, setClickedText] = useState<{ title: string, content: string } | null>(null);
   const initializedRef = useRef(false);
   const knownOrderIdsRef = useRef<Set<string>>(new Set());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -56,17 +57,33 @@ export default function CashierDashboard() {
     loadOrders();
     const interval = setInterval(loadOrders, 3000); 
     
-    // Auto-prime audio on first interaction
+    // Create audio instance
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/tingtung.mp3');
+      audioRef.current.load();
+    }
+
+    // Auto-prime audio on any interaction
     const primeAudio = () => {
-      const a = new Audio('/tingtung.mp3');
-      a.play().catch(() => {});
+      if (audioRef.current) {
+        audioRef.current.play().then(() => {
+          audioRef.current?.pause();
+          if (audioRef.current) audioRef.current.currentTime = 0;
+        }).catch(e => console.log("Prime failed", e));
+      }
       window.removeEventListener('click', primeAudio);
+      window.removeEventListener('keydown', primeAudio);
+      window.removeEventListener('touchstart', primeAudio);
     };
     window.addEventListener('click', primeAudio);
+    window.addEventListener('keydown', primeAudio);
+    window.addEventListener('touchstart', primeAudio);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('click', primeAudio);
+      window.removeEventListener('keydown', primeAudio);
+      window.removeEventListener('touchstart', primeAudio);
     };
   }, [loadOrders]);
 
@@ -80,17 +97,18 @@ export default function CashierDashboard() {
 
     // Only play sound if already initialized AND we have actually new orders
     if (initializedRef.current && hasNewOrder && audioEnabled) {
-       const audio = new Audio('/tingtung.mp3');
-       audio.play().catch(e => {
-          console.error("Audio play failed", e);
-       });
+       if (audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(e => {
+             console.error("Audio play failed", e);
+             setAudioEnabled(false);
+          });
+       }
     }
     
     // Update known IDs
-    if (orders.length > 0) {
-      receivedOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
-      initializedRef.current = true;
-    }
+    receivedOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
+    initializedRef.current = true;
     
     lastOrderCountRef.current = receivedOrders.length;
   }, [orders, audioEnabled]);

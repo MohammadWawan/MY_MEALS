@@ -29,7 +29,7 @@ export default function LocationsAdmin() {
   const fetchLocations = async () => {
     try {
       const data = await getLocations();
-      setLocations(data);
+      setLocations(data.sort((a: any, b: any) => a.floor.localeCompare(b.floor, undefined, { numeric: true })));
     } catch (e) {
       toast.error("Gagal mengambil data lokasi");
     } finally {

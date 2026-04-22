@@ -57,6 +57,10 @@ function OrderContent() {
         if (!grouped[l.floor]) grouped[l.floor] = [];
         grouped[l.floor].push(l.name);
       });
+      // Sort names within each floor
+      Object.keys(grouped).forEach(f => {
+        grouped[f].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      });
       setFloorLocations(grouped);
     } catch (e) {
       toast.error(t('common.error'));
@@ -502,7 +506,7 @@ function OrderContent() {
                        <label className="block text-xs font-black text-zinc-500 mb-3 uppercase tracking-widest">{t('checkout.floor')}</label>
                        <select value={floor} onChange={e => { setFloor(e.target.value); setLocation(""); }} className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-600 outline-none font-bold appearance-none cursor-pointer">
                           <option value="">{t('checkout.floor')}</option>
-                          {Object.keys(displayLocations).map(f => (
+                          {Object.keys(displayLocations).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })).map(f => (
                              <option key={f} value={f}>{f}</option>
                           ))}
                        </select>
