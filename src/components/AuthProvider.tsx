@@ -196,11 +196,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     const resetInactivityTimer = () => {
       clearTimeout(timeout);
-      // 1 hour = 3600000 ms
+      // 10 minutes = 600000 ms
       timeout = setTimeout(() => {
         logout();
         window.location.href = "/auth/login";
-      }, 3600000); 
+      }, 600000); 
     };
 
     let lastExecution = 0;

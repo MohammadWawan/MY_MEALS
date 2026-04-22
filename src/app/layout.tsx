@@ -29,7 +29,12 @@ export default function RootLayout({
             <AuthProvider>
               <RouteGuard>
                 <Navigation />
-                {children}
+                <main className="flex-1">
+                  {children}
+                </main>
+                <footer className="py-6 border-t border-zinc-200 dark:border-zinc-800 text-center opacity-50 print:hidden">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">created by Unit SIMRS Hermina Pasuruan</p>
+                </footer>
               </RouteGuard>
               <Toaster position="top-center" richColors />
             </AuthProvider>

@@ -22,6 +22,8 @@ export default function WaiterDashboard() {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const knownReadyIdsRef = useRef<Set<string>>(new Set());
+  const initializedRef = useRef(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -48,12 +50,26 @@ export default function WaiterDashboard() {
     setMounted(true);
     fetchOrders();
     const interval = setInterval(fetchOrders, 6000);
-    return () => clearInterval(interval);
+
+    // Auto-prime audio on first interaction
+    const primeAudio = () => {
+      const a = new Audio('/tingtung.mp3');
+      a.play().catch(() => {});
+      window.removeEventListener('click', primeAudio);
+    };
+    window.addEventListener('click', primeAudio);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('click', primeAudio);
+    };
   }, [fetchOrders]);
 
   useEffect(() => {
-    const readyCount = orders.filter(o => o.status === 'ready').length;
-    if (readyCount > lastReadyCount && audioEnabled) {
+    const readyOrders = orders.filter(o => o.status === 'ready');
+    const hasNewReady = readyOrders.some(o => !knownReadyIdsRef.current.has(o.id));
+
+    if (initializedRef.current && hasNewReady && audioEnabled) {
        const audio = new Audio('/tingtung.mp3');
        audio.play().catch(e => {
           if (e.name === 'NotAllowedError') {
@@ -62,8 +78,14 @@ export default function WaiterDashboard() {
           }
        });
     }
-    setLastReadyCount(readyCount);
-  }, [orders, lastReadyCount, audioEnabled]);
+
+    if (orders.length > 0) {
+      readyOrders.forEach(o => knownReadyIdsRef.current.add(o.id));
+      initializedRef.current = true;
+    }
+    
+    setLastReadyCount(readyOrders.length);
+  }, [orders, audioEnabled]);
 
   // Strict Role Control
   useEffect(() => {

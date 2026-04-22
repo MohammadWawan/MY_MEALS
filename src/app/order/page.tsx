@@ -282,20 +282,19 @@ function OrderContent() {
          {/* Categories & Search */}
          <div className="flex flex-col lg:flex-row gap-8 items-center bg-white dark:bg-zinc-900/50 p-6 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 shadow-xl">
             <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar flex-1 w-full scale-90 origin-left">
-               {[
-                 { id: 'all', label: t('order.all'), icon: Utensils },
-                 { id: 'makanan', label: t('order.food'), icon: ShoppingBag },
-                 { id: 'minuman', label: t('order.drinks'), icon: ShoppingBag },
-                 { id: 'snack', label: t('order.snacks'), icon: ShoppingBag }
-               ].map((cat) => (
-                  <button 
-                    key={cat.id} 
-                    onClick={() => setCurrentCategory(cat.id)}
-                    className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap flex items-center gap-3 ${currentCategory === cat.id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100'}`}
-                  >
-                    <cat.icon className="w-4 h-4" /> {cat.label}
-                  </button>
-               ))}
+               {categories.map((catId) => {
+                  const label = catId === 'all' ? t('order.all') : (catId.charAt(0).toUpperCase() + catId.slice(1));
+                  const Icon = catId === 'all' ? Utensils : ShoppingBag;
+                  return (
+                    <button 
+                      key={catId} 
+                      onClick={() => setCurrentCategory(catId)}
+                      className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap flex items-center gap-3 ${currentCategory === catId ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-zinc-50 dark:bg-zinc-950 text-zinc-500 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100'}`}
+                    >
+                      <Icon className="w-4 h-4" /> {label}
+                    </button>
+                  );
+               })}
             </div>
             <div className="relative w-full lg:w-[450px]">
                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-zinc-400" />
