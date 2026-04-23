@@ -83,10 +83,10 @@ function OrderContent() {
   const displayLocations = floorLocations;
 
   // Staff should not be here
-  const isStaff = user && ['cashier', 'catering', 'waiter'].includes(user.role as string);
+  const isStaff = user && ['cashier', 'catering', 'waiter', 'perawat'].includes(user.role as string);
   useEffect(() => {
     if (mounted && user && isStaff && user.role !== 'admin') {
-      const target = (user.role as string) === 'waiter' ? '/server' : `/${user.role}`;
+      const target = (user.role as string) === 'waiter' ? '/server' : (user.role as string) === 'perawat' ? '/nurse' : `/${user.role}`;
       toast.error(`Staff role (${user.role}) is not authorized for ordering.`);
       router.push(target);
     }
@@ -213,7 +213,11 @@ function OrderContent() {
        };
 
        try {
-          await createOrder(orderData);
+          const result = await createOrder(orderData);
+          if (!result.success) {
+             toast.error(result.error || "Gagal memproses pesanan dokter.");
+             return;
+          }
           toast.success("Pesanan berhasil diproses!");
           clearCart();
           router.push("/tracking");

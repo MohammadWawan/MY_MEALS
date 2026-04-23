@@ -51,6 +51,7 @@ export default function LoginPage() {
       else if (dbUser.role === "catering") router.push("/catering");
       else if (dbUser.role === "waiter") router.push("/server");
       else if (dbUser.role === "cashier") router.push("/cashier");
+      else if (dbUser.role === "perawat") router.push("/nurse");
 
     } catch (err: any) {
        toast.dismiss(loadingToast);

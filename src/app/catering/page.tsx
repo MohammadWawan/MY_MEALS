@@ -114,22 +114,22 @@ export default function CateringDashboard() {
   });
 
   const OrdererBadge = ({ order }: { order: any }) => (
-    <div className={`mb-3 p-3 rounded-xl border ${order.orderType === 'doctor' ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100 dark:bg-emerald-900/10'}`}>
+    <div className={`mb-3 p-3 rounded-xl border ${order.orderType === 'doctor' ? 'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/30' : 'bg-emerald-50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-900/20'}`}>
       <div className="flex items-center gap-2 mb-1">
-        {order.orderType === 'doctor' ? <Stethoscope className="w-3.5 h-3.5 text-rose-600" /> : <User className="w-3.5 h-3.5 text-emerald-600" />}
-        <span className={`text-[10px] font-black uppercase tracking-wider ${order.orderType === 'doctor' ? 'text-rose-600' : 'text-emerald-600'}`}>
+        {order.orderType === 'doctor' ? <Stethoscope className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> : <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
+        <span className={`text-[10px] font-black uppercase tracking-wider ${order.orderType === 'doctor' ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
           {order.orderType === 'doctor' ? 'Dokter / DPJP' : 'Customer / Pasien'}
         </span>
       </div>
-      <p className="text-sm font-bold text-zinc-800 dark:text-zinc-200">{order.customerName}</p>
-      <p className="text-xs text-indigo-600 font-bold mt-0.5 uppercase tracking-tighter">
+      <p className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{order.customerName}</p>
+      <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold mt-0.5 uppercase tracking-tighter">
         {order.floor || 'No Floor'} {order.location ? ` – ${order.location}` : ''} {order.roomNumber ? `(R.${order.roomNumber})` : ''}
       </p>
       {order.description && (
         <p className={`text-[12px] mt-2 p-2 rounded-lg font-black border ${
           order.orderType === 'doctor' 
-            ? 'bg-rose-200/30 text-rose-700 dark:text-rose-100 border-rose-200/50' 
-            : 'bg-emerald-200/30 text-emerald-700 dark:text-emerald-100 border-emerald-200/50'
+            ? 'bg-rose-200/30 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200 border-rose-200/50 dark:border-rose-800' 
+            : 'bg-emerald-200/30 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200 border-emerald-200/50 dark:border-emerald-800'
         }`}>
           Note: {order.description}
         </p>
@@ -201,9 +201,9 @@ export default function CateringDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Board 1: New Ticket */}
             <div className={`bg-zinc-100 dark:bg-zinc-900/50 rounded-[2.5rem] p-8 h-max ${((startDate || endDate) && (startDate !== new Date().toISOString().split('T')[0] || endDate !== new Date().toISOString().split('T')[0])) ? 'opacity-50 grayscale pt-4 pb-2' : ''}`}>
-               <h3 className="text-xl font-black mb-8 text-zinc-400 flex justify-between">{t('kitchen.new_tickets')} <span>{filteredOrders.filter(o => o.status === 'created').length}</span></h3>
+               <h3 className="text-xl font-black mb-8 text-zinc-400 flex justify-between">{t('kitchen.new_tickets')} <span>{filteredOrders.filter(o => o.status === 'created' || (o.status === 'received' && o.orderType === 'doctor')).length}</span></h3>
                <div className="space-y-6">
-                 {filteredOrders.filter(o => o.status === 'created').map(order => (
+                 {filteredOrders.filter(o => o.status === 'created' || (o.status === 'received' && o.orderType === 'doctor')).map(order => (
                    <div key={order.id} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl shadow-lg border border-zinc-100 dark:border-zinc-800 animate-in fade-in slide-in-from-bottom-2 duration-500">
                       <div className="flex justify-between font-mono text-[10px] mb-4 font-black text-indigo-600"><span>{order.id}</span> <span>{new Date(order.orderDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></div>
                       <OrdererBadge order={order} />
@@ -214,7 +214,7 @@ export default function CateringDashboard() {
                         <button 
                           disabled={isSubmitting || (order.orderType === 'doctor' && order.expectedDate && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date())}
                           onClick={() => updateStatus(order.id, 'preparing')} 
-                          className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-indigo-600/20 disabled:bg-zinc-300 disabled:shadow-none"
+                          className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl active:scale-95 transition-all shadow-lg shadow-indigo-600/20 disabled:bg-zinc-200 dark:disabled:bg-zinc-800 disabled:text-zinc-400 dark:disabled:text-zinc-600 disabled:shadow-none"
                         >
                            {isSubmitting ? t('common.loading') : (order.orderType === 'doctor' && order.expectedDate && new Date(order.expectedDate).toDateString() !== new Date().toDateString() && new Date(order.expectedDate) > new Date() ? t('kitchen.locked_tomorrow') : t('kitchen.start_cooking'))}
                         </button>

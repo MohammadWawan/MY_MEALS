@@ -85,6 +85,9 @@ export default function Navigation() {
                 {(isAdmin || user.role === 'cashier') && (
                   <Link href="/cashier" className={linkClass('/cashier')}>{t('nav.validations')}</Link>
                 )}
+                {(isAdmin || user.role === 'perawat') && (
+                  <Link href="/nurse" className={linkClass('/nurse')}>Jadwal Operasi</Link>
+                )}
                 {(isAdmin || user.role === 'catering' || user.role === 'cashier' || user.role === 'waiter') && (
                   <Link href="/reports" className={linkClass('/reports')}>{t('nav.reports')}</Link>
                 )}
@@ -171,6 +174,9 @@ export default function Navigation() {
                 )}
                 {(isAdmin || user.role === 'cashier') && (
                   <Link onClick={() => setIsMobileMenuOpen(false)} href="/cashier" className={mobileLinkClass('/cashier')}>{t('nav.validations')}</Link>
+                )}
+                {(isAdmin || user.role === 'perawat') && (
+                  <Link onClick={() => setIsMobileMenuOpen(false)} href="/nurse" className={mobileLinkClass('/nurse')}>Jadwal Operasi</Link>
                 )}
                 {(isAdmin || user.role === 'catering' || user.role === 'cashier' || user.role === 'waiter') && (
                   <Link onClick={() => setIsMobileMenuOpen(false)} href="/reports" className={mobileLinkClass('/reports')}>{t('nav.reports')}</Link>

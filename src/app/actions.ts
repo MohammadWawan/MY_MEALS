@@ -1,18 +1,27 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { menus, orders, orderItems, users, favorites, coupons, locations, doctorActions } from "@/lib/schema";
-import { eq, desc, and, gte, lt } from "drizzle-orm";
+import { menus, orders, orderItems, users, favorites, coupons, locations, doctorActions, surgerySchedules } from "@/lib/schema";
+import { eq, desc, and, gte, lt, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { scryptSync, randomBytes, timingSafeEqual } from "node:crypto";
 
 const generateId = () => Math.random().toString(36).substring(2, 9).toUpperCase();
+ 
+// Timezone Helper (Asia/Jakarta = GMT+7)
+const getWIBDateStr = (date: Date) => {
+  return new Intl.DateTimeFormat('en-CA', { 
+    timeZone: 'Asia/Jakarta', 
+    year: 'numeric', 
+    month: '2-digit', 
+    day: '2-digit' 
+  }).format(date);
+};
 
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-
-const tomorrow = new Date(today);
-tomorrow.setDate(tomorrow.getDate() + 1);
+const getWIBStartOfDay = (date: Date) => {
+  const dateStr = getWIBDateStr(date);
+  return new Date(`${dateStr}T00:00:00+07:00`);
+};
 
 // Security Helpers
 const hashPassword = (password: string) => {
@@ -117,41 +126,57 @@ export async function createOrder(data: {
     let finalPaymentMethod = data.paymentMethod;
 
     const user = await db.query.users.findFirst({ where: eq(users.id, data.userId) });
+    
+    // Timezone-aware date calculation (GMT+7)
+    const now = new Date();
+    const todayWIB = getWIBStartOfDay(now);
+    const tomorrowWIB = new Date(todayWIB.getTime() + 86400000);
+
+    const isAdvance = data.deliveryType === 'advance';
+    const targetDate = isAdvance ? tomorrowWIB : todayWIB;
+    const targetDateStr = getWIBDateStr(targetDate);
+
     if (user?.role === 'doctor') {
-       // Doctor Quota Logic inspired by surgical action count
-       const dateStr = today.toISOString().split('T')[0];
-       const doctorAction = await db.query.doctorActions.findFirst({
+       // Check surgery schedules for the target date string
+       const schedules = await db.query.surgerySchedules.findMany({
           where: and(
-             eq(doctorActions.userId, data.userId),
-             eq(doctorActions.date, dateStr)
+             eq(surgerySchedules.doctorId, data.userId),
+             eq(surgerySchedules.date, targetDateStr)
           )
        });
 
-       const surgicalActionCount = doctorAction?.count ?? 1;
-       const maxMeals = surgicalActionCount >= 2 ? 2 : 1;
+       const scheduleCount = schedules.length;
+       
+       if (scheduleCount === 0) {
+          const dateLabel = isAdvance ? "besok" : "hari ini";
+          return { success: false, error: `Anda belum memiliki jadwal operasi untuk ${dateLabel} (${targetDateStr}). Hubungi perawat untuk membuat jadwal operasi terlebih dahulu.` };
+       }
 
-       const todaysOrders = await db.query.orders.findMany({
+       const maxMeals = scheduleCount >= 2 ? 2 : 1;
+
+       // Quota Check: Look at orders whose expectedDate is on the targetDate
+       const targetOrders = await db.query.orders.findMany({
           where: and(
              eq(orders.userId, data.userId),
              eq(orders.orderType, 'doctor'),
-             gte(orders.orderDate, today),
-             lt(orders.orderDate, tomorrow)
+             ne(orders.status, 'cancelled'), // Cancelled orders don't count
+             gte(orders.expectedDate, targetDate),
+             lt(orders.expectedDate, new Date(targetDate.getTime() + 86400000))
           )
        });
 
-       // Point 8: For doctors, each order should only have 1 qty per item
+       // For doctors, each order should only have 1 qty per item
        data.items = data.items.map(it => ({ ...it, quantity: 1 }));
 
-       if (todaysOrders.length >= maxMeals) {
-          return { success: false, error: `Jatah konsumsi Dokter maksimal ${maxMeals}x sesuai jumlah tindakan (${surgicalActionCount}).` };
-       } else if (todaysOrders.length > 0) {
-          finalStatus = 'pending-approval';
-       } else {
-          finalStatus = 'created';
+       if (targetOrders.length >= maxMeals) {
+          const dateLabel = isAdvance ? "besok" : "hari ini";
+          return { success: false, error: `Jatah konsumsi Dokter untuk ${dateLabel} maksimal ${maxMeals}x sesuai jumlah jadwal operasi (${scheduleCount}).` };
        }
+       
+       finalStatus = 'received';
        finalIsPaid = true;
        finalPaymentMethod = "doctor_quota";
-       data.totalAmount = 0; // Doctors are always free
+       data.totalAmount = 0;
     }
 
     await db.insert(orders).values({
@@ -171,9 +196,9 @@ export async function createOrder(data: {
       roomNumber: data.roomNumber,
       couponCode: data.couponCode,
       discountTotal: data.discountTotal || 0,
-      orderDate: new Date(),
-      expectedDate: new Date(new Date().getTime() + (data.deliveryType === 'advance' ? 86400000 : 3600000)), // tomorrow or in 1 hour
-      updatedAt: new Date(),
+      orderDate: now,
+      expectedDate: new Date(targetDate.getTime() + (isAdvance ? 12 * 3600000 : 3600000)), // 12 PM tomorrow or in 1 hour today
+      updatedAt: now,
     });
 
 
@@ -509,7 +534,7 @@ export async function getStaffAndCustomers() {
    const allUsers = await db.query.users.findMany({
        orderBy: [desc(users.createdAt)]
    });
-   return allUsers.filter(u => u.role !== 'doctor' && u.role !== 'admin');
+   return allUsers.filter(u => u.role !== 'doctor');
 }
 
 export async function updateEmployee(id: number, data: { name?: string, email?: string, role?: string, image?: string }) {
@@ -892,6 +917,7 @@ export async function updateDoctorActionCount(userId: number, date: string, coun
       });
    }
    revalidatePath("/admin/doctors");
+   revalidatePath("/nurse");
 }
 
 // ==== USER SETTINGS ====
@@ -950,4 +976,134 @@ export async function bulkAddUsers(data: { name: string, email: string, password
   revalidatePath("/admin/doctors");
   revalidatePath("/admin/employees");
   return { success: true, count };
+}
+
+// ==== SURGERY SCHEDULE ACTIONS ====
+
+export async function getSurgerySchedules(date?: string) {
+  if (date) {
+    return await db.query.surgerySchedules.findMany({
+      where: eq(surgerySchedules.date, date),
+      with: { doctor: true },
+      orderBy: [surgerySchedules.startTime]
+    });
+  }
+  return await db.query.surgerySchedules.findMany({
+    with: { doctor: true },
+    orderBy: [desc(surgerySchedules.createdAt)]
+  });
+}
+
+export async function getSurgerySchedulesByDoctor(doctorId: number, date?: string) {
+  if (date) {
+    return await db.query.surgerySchedules.findMany({
+      where: and(eq(surgerySchedules.doctorId, doctorId), eq(surgerySchedules.date, date)),
+      orderBy: [surgerySchedules.startTime]
+    });
+  }
+  return await db.query.surgerySchedules.findMany({
+    where: eq(surgerySchedules.doctorId, doctorId),
+    orderBy: [desc(surgerySchedules.date)]
+  });
+}
+
+export async function addSurgerySchedule(data: { doctorId: number, date: string, startTime: string, endTime: string, description?: string, createdByName?: string }) {
+  try {
+    await db.insert(surgerySchedules).values({
+      id: "SCH-" + generateId(),
+      doctorId: data.doctorId,
+      date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      description: data.description || null,
+      createdByName: data.createdByName || null,
+      createdAt: new Date(),
+    });
+
+    // Auto-sync doctorActions count based on schedule count
+    const allSchedules = await db.query.surgerySchedules.findMany({
+      where: and(eq(surgerySchedules.doctorId, data.doctorId), eq(surgerySchedules.date, data.date))
+    });
+    await syncDoctorActionCount(data.doctorId, data.date, allSchedules.length);
+
+    revalidatePath("/nurse");
+    revalidatePath("/admin/doctors");
+    return { success: true };
+  } catch (err: any) {
+    console.error("addSurgerySchedule error:", err);
+    return { success: false, error: "Gagal menambah jadwal operasi." };
+  }
+}
+
+export async function updateSurgerySchedule(id: string, data: { date: string, startTime: string, endTime: string, description?: string }) {
+  try {
+    const existing = await db.query.surgerySchedules.findFirst({ where: eq(surgerySchedules.id, id) });
+    if (!existing) return { success: false, error: "Jadwal tidak ditemukan." };
+
+    await db.update(surgerySchedules).set({
+      date: data.date,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      description: data.description || null,
+      updatedAt: new Date(),
+    }).where(eq(surgerySchedules.id, id));
+
+    // Sync for both old and new date
+    if (existing.date !== data.date) {
+      const oldSchedules = await db.query.surgerySchedules.findMany({
+        where: and(eq(surgerySchedules.doctorId, existing.doctorId), eq(surgerySchedules.date, existing.date))
+      });
+      await syncDoctorActionCount(existing.doctorId, existing.date, oldSchedules.length);
+    }
+    const newSchedules = await db.query.surgerySchedules.findMany({
+      where: and(eq(surgerySchedules.doctorId, existing.doctorId), eq(surgerySchedules.date, data.date))
+    });
+    await syncDoctorActionCount(existing.doctorId, data.date, newSchedules.length);
+
+    revalidatePath("/nurse");
+    revalidatePath("/admin/doctors");
+    return { success: true };
+  } catch (err: any) {
+    console.error("updateSurgerySchedule error:", err);
+    return { success: false, error: "Gagal memperbarui jadwal operasi." };
+  }
+}
+
+export async function deleteSurgerySchedule(id: string) {
+  try {
+    const existing = await db.query.surgerySchedules.findFirst({ where: eq(surgerySchedules.id, id) });
+    if (!existing) return { success: false, error: "Jadwal tidak ditemukan." };
+
+    await db.delete(surgerySchedules).where(eq(surgerySchedules.id, id));
+
+    // Sync doctorActions count
+    const remaining = await db.query.surgerySchedules.findMany({
+      where: and(eq(surgerySchedules.doctorId, existing.doctorId), eq(surgerySchedules.date, existing.date))
+    });
+    await syncDoctorActionCount(existing.doctorId, existing.date, remaining.length);
+
+    revalidatePath("/nurse");
+    revalidatePath("/admin/doctors");
+    return { success: true };
+  } catch (err: any) {
+    console.error("deleteSurgerySchedule error:", err);
+    return { success: false, error: "Gagal menghapus jadwal operasi." };
+  }
+}
+
+// Helper: keep doctorActions in sync with surgery schedule count
+async function syncDoctorActionCount(doctorId: number, date: string, count: number) {
+  const existing = await db.query.doctorActions.findFirst({
+    where: and(eq(doctorActions.userId, doctorId), eq(doctorActions.date, date))
+  });
+  if (existing) {
+    await db.update(doctorActions).set({ count }).where(eq(doctorActions.id, existing.id));
+  } else {
+    await db.insert(doctorActions).values({
+      id: "DAC-" + generateId(),
+      userId: doctorId,
+      date,
+      count
+    });
+  }
 }

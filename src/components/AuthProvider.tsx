@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from "react";
 import { getUser } from "@/app/actions";
 
-export type Role = "customer" | "doctor" | "catering" | "waiter" | "cashier" | "admin" | null;
+export type Role = "customer" | "doctor" | "catering" | "waiter" | "cashier" | "perawat" | "admin" | null;
 
 export interface User {
   id: number;

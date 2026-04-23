@@ -52,6 +52,7 @@ const translations = {
     'role.waiter': 'SERVER',
     'role.cashier': 'CASHIER',
     'role.catering': 'KITCHEN',
+    'role.perawat': 'NURSE',
 
     // Kitchen Hub
     'kitchen.title': 'Kitchen Hub',
@@ -163,6 +164,7 @@ const translations = {
     'role.waiter': 'WAITER',
     'role.cashier': 'KASIR',
     'role.catering': 'DAPUR',
+    'role.perawat': 'PERAWAT',
 
     // Kitchen Hub
     'kitchen.title': 'Pusat Dapur',

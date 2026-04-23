@@ -253,12 +253,14 @@ export default function AdminEmployeeManager() {
                                </div>
                                <div>
                                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">System Role</label>
-                                  <select value={editRole} onChange={e => setEditRole(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
-                                      <option value="customer">Customer / Pasien</option>
-                                      <option value="cashier">Cashier</option>
-                                      <option value="catering">Catering / Kitchen</option>
-                                      <option value="waiter">Waiter / Server</option>
-                                  </select>
+                                   <select value={editRole} onChange={e => setEditRole(e.target.value)} className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                                       <option value="customer">Customer / Pasien</option>
+                                       <option value="cashier">Cashier</option>
+                                       <option value="catering">Catering / Kitchen</option>
+                                       <option value="waiter">Waiter / Server</option>
+                                       <option value="perawat">Perawat / Nurse</option>
+                                       <option value="admin">Admin</option>
+                                   </select>
                                </div>
                            </div>
                        ) : (
@@ -269,6 +271,8 @@ export default function AdminEmployeeManager() {
                                 emp.role === 'customer' ? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400' : 
                                 emp.role === 'cashier' ? 'bg-emerald-100 text-emerald-700' :
                                 emp.role === 'catering' ? 'bg-amber-100 text-amber-700' :
+                                emp.role === 'perawat' ? 'bg-pink-100 text-pink-700' :
+                                emp.role === 'admin' ? 'bg-rose-100 text-rose-700' :
                                 'bg-indigo-100 text-indigo-700'
                              }`}>
                                  {emp.role}

@@ -157,3 +157,22 @@ export const doctorActions = sqliteTable("doctorAction", {
   count: integer("count").notNull().default(1),
 });
 
+export const surgerySchedules = sqliteTable("surgerySchedule", {
+  id: text("id").primaryKey(),
+  doctorId: integer("doctorId", { mode: 'number' }).notNull().references(() => users.id),
+  date: text("date").notNull(), // YYYY-MM-DD
+  startTime: text("startTime").notNull(), // HH:mm
+  endTime: text("endTime").notNull(), // HH:mm
+  description: text("description"), // e.g. "Operasi Jantung"
+  createdByName: text("createdByName"), // nurse name
+  createdAt: integer("createdAt", { mode: 'timestamp' }).notNull(),
+  updatedAt: integer("updatedAt", { mode: 'timestamp' }),
+});
+
+export const surgerySchedulesRelations = relations(surgerySchedules, ({ one }) => ({
+  doctor: one(users, {
+    fields: [surgerySchedules.doctorId],
+    references: [users.id],
+  }),
+}));
+
